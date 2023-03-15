@@ -1,5 +1,7 @@
 import tkinter as tk
 import tkinter.font as tkFont
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import pyperclip
 
 
@@ -15,6 +17,11 @@ class App(tk.Frame):
 
         # 字體設定
         font = tkFont.Font(family="微軟正黑體", size=13)
+        style = ttk.Style()
+        style.configure('OK.TButton', font=('微軟正黑體', 13), background='green',
+                        borderwidth=1)
+        style.map('OK.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
+                  background=[('pressed', 'green'), ('active', 'dark green')])
 
         # 萌芽系列網站按鈕組
         self.sites = [("💻 萌芽綜合天地", "cc"),
@@ -62,23 +69,36 @@ class App(tk.Frame):
         tk.Entry(input_frame, textvariable=self.image_height_var,
                  font=font).pack()
 
-        button_frame = tk.Frame(input_frame)
-        button_frame.pack()
+        space_frame = tk.Frame(input_frame)
+        space_frame.pack(pady=2)
 
         def set_image_size(width, height):
             self.image_width_var.set(width)
             self.image_height_var.set(height)
 
-        tk.Button(button_frame, text="1024x768",
-                  command=lambda: set_image_size(1024, 768)).pack(side=tk.LEFT, padx=1, pady=5)
-        tk.Button(button_frame, text="1024x473",
-                  command=lambda: set_image_size(1024, 473)).pack(side=tk.LEFT, padx=1, pady=5)
-        tk.Button(button_frame, text="1024x576",
-                  command=lambda: set_image_size(1024, 576)).pack(side=tk.LEFT, padx=1, pady=5)
+        button_frame = tk.Frame(input_frame)
+        button_frame.pack()
+
+        tk.Button(button_frame, text="1024 x 768",
+                  command=lambda: set_image_size(1024, 768)).pack(side=tk.LEFT, padx=1, pady=1)
+        tk.Button(button_frame, text="1024 x 473",
+                  command=lambda: set_image_size(1024, 473)).pack(side=tk.LEFT, padx=1, pady=1)
+        tk.Button(button_frame, text="1024 x 576",
+                  command=lambda: set_image_size(1024, 576)).pack(side=tk.LEFT, padx=1, pady=1)
+
+        button_frame2 = tk.Frame(input_frame)
+        button_frame2.pack()
+
+        tk.Button(button_frame2, text="710 x 768",
+                  command=lambda: set_image_size(710, 768)).pack(side=tk.LEFT, padx=1, pady=1)
+        tk.Button(button_frame2, text="1280 x 768",
+                  command=lambda: set_image_size(1280, 768)).pack(side=tk.LEFT, padx=1, pady=1)
+        tk.Button(button_frame2, text="1920 x 1080",
+                  command=lambda: set_image_size(1920, 1080)).pack(side=tk.LEFT, padx=1, pady=1)
 
         # 生成圖文原始碼按鈕
-        tk.Button(input_frame, text="📑 生成圖文原始碼到剪貼簿",
-                  command=self.generate_code, font=font).pack(padx=5, pady=5)
+        ttk.Button(input_frame, text="📑 生成圖文原始碼到剪貼簿", style="OK.TButton",
+                   command=self.generate_code).pack(padx=5, pady=5)
 
     def generate_code(self):
         site_code = self.site_var.get()
@@ -106,8 +126,9 @@ class App(tk.Frame):
 if __name__ == "__main__":
     import datetime
     root = tk.Tk()
+    style = ttk.Style("superhero")
     root.title("萌芽系列網站圖文原始碼生成器")
-    root.geometry("400x400")
+    root.geometry("410x410")
     root.iconbitmap('icon.ico')
     app = App(master=root)
     app.mainloop()
