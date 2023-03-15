@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import scrolledtext
 import tkinter.font as tkFont
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -8,10 +9,21 @@ import pyperclip
 class App(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
+        self.tabControl = ttk.Notebook(self)
+        # 頁籤 1
+        self.tab1 = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tab1, text='主要功能')
+        # 頁籤 2
+        self.tab2 = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tab2, text='關於程式')
+        # 設定預設進入頁籤 1
+        self.tabControl.pack(expand=1, fill="both")
         self.master = master
-        self.master.title("萌芽系列網站圖文原始碼生成器")
+        self.version = "V1.1"
+        self.master.title("萌芽系列網站圖文原始碼生成器 "+self.version)
         self.pack()
         self.create_widgets()
+        self.about()
 
     def create_widgets(self):
 
@@ -32,7 +44,7 @@ class App(tk.Frame):
                       ("🖼 萌芽二次元", "2d"),
                       ("🎮 萌芽Game網", "games")]
         self.site_var = tk.StringVar(value=self.sites[0][1])
-        site_frame = tk.Frame(self)
+        site_frame = tk.Frame(self.tab1)
         site_frame.pack(side=tk.LEFT, padx=5, pady=5)
         for site, code in self.sites:
             tk.Radiobutton(site_frame, text=site,
@@ -50,7 +62,7 @@ class App(tk.Frame):
                        variable=self.include_symbol_var, font=font).pack()
 
         # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
-        input_frame = tk.Frame(self)
+        input_frame = tk.Frame(self.tab1)
         input_frame.pack(side=tk.RIGHT, padx=5, pady=5)
         self.year_var = tk.StringVar(value=str(datetime.datetime.now().year))
         self.article_var = tk.StringVar(value="1")
@@ -122,13 +134,26 @@ class App(tk.Frame):
                 code += "\n"
             pyperclip.copy(code)
 
+    def about(self):
+        # 建立可捲動的文字方塊
+        txt = scrolledtext.ScrolledText(
+            self.tab2, width=50, height=20, font=('微軟正黑體', 13))
+        txt.pack(fill='both', expand=True)
+        # 將文字放入文字方塊中
+        text = "版本：" + self.version + "\n軟體開發及維護者：萌芽站長\n" \
+            "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
+            "\n ■ 更新日誌 ■ \n" \
+            "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
+            "2023/03/15：V1.0 初始版釋出\n"
+        txt.insert("1.0", text)
+
 
 if __name__ == "__main__":
     import datetime
     root = tk.Tk()
     style = ttk.Style("superhero")
     root.title("萌芽系列網站圖文原始碼生成器")
-    root.geometry("410x410")
+    root.geometry("410x430")
     root.iconbitmap('icon.ico')
     app = App(master=root)
     app.mainloop()

@@ -3,7 +3,12 @@
 為快速且方便生成萌芽系列網站之萌芽七大 WP 站圖文原始碼而誕生的小程式。<br>
 自豪的使用 Python 開發，由萌芽站長與 ChatGPT 共同研究之結晶。
 
-![GUI截圖](screenshot.jpg)
+![V1.1 GUI截圖](screenshot_V1.1.jpg)
+
+## 更新日誌
+
+2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式<br>
+2023/03/15：V1.0 初始版釋出<br>
 
 ## 系統支援
 
@@ -20,3 +25,9 @@ Windows 10 64bit 以上
 
 如果要將 .py 檔案打包成可執行檔 .exe 需透過以下指令：
 pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
+
+## 舊版本截圖
+
+#### V1.0 GUI 截圖
+
+![V1.0 GUI截圖](screenshot_V1.jpg)
