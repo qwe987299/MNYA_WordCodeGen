@@ -1,9 +1,13 @@
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, filedialog, messagebox
 import tkinter.font as tkFont
 import ttkbootstrap as ttk
+from tktooltip import ToolTip
 from ttkbootstrap.constants import *
 import pyperclip
+from PIL import Image
+import os
+import threading
 
 
 class App(tk.Frame):
@@ -15,14 +19,18 @@ class App(tk.Frame):
         self.tabControl.add(self.tab1, text='主要功能')
         # 頁籤 2
         self.tab2 = ttk.Frame(self.tabControl)
-        self.tabControl.add(self.tab2, text='關於程式')
+        self.tabControl.add(self.tab2, text='批次處理')
+        # 頁籤 0
+        self.tab0 = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tab0, text='關於程式')
         # 設定預設進入頁籤 1
         self.tabControl.pack(expand=1, fill="both")
         self.master = master
-        self.version = "V1.1"
+        self.version = "V1.2"
         self.master.title("萌芽系列網站圖文原始碼生成器 "+self.version)
         self.pack()
         self.create_widgets()
+        self.batch_widgets()
         self.about()
 
     def create_widgets(self):
@@ -134,15 +142,64 @@ class App(tk.Frame):
                 code += "\n"
             pyperclip.copy(code)
 
+    def batch_widgets(self):
+
+        # 字體設定
+        style.configure('HANDLE.TButton', font=('微軟正黑體', 13), background='#A0522D',
+                        borderwidth=1)
+        style.map('HANDLE.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
+                  background=[('pressed', '#A0522D'), ('active', '#8B4513')])
+
+        self.image_per2_merge_button = ttk.Button(
+            self.tab2, text="【圖片倆倆合併】點我載入多張圖片並處理", style="HANDLE.TButton", command=self.load_images)
+        self.image_per2_merge_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併", delay=0.2,
+                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
+    def load_images(self):
+        self.images = filedialog.askopenfilenames(initialdir=os.getcwd(
+        ), title="選擇圖片", filetypes=[("Image files", "*.jpg *.png *.jpeg")])
+        if len(self.images) == 0:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
+        self.merge_images()
+
+    def merge_images(self):
+        self.image_per2_merge_button.configure(state='disabled')
+        threading.Thread(target=self.merge_thread).start()
+
+    def merge_thread(self):
+        # 如果圖片總數為單數，最後一張不合併
+        if len(self.images) % 2 == 1:
+            self.images = self.images[:-1]
+
+        # 每兩張圖片合併
+        for i in range(0, len(self.images), 2):
+            image1 = Image.open(self.images[i])
+            image2 = Image.open(self.images[i+1])
+            width = image1.width + image2.width
+            height = image1.height
+            new_image = Image.new('RGB', (width, height))
+            new_image.paste(image1, (0, 0))
+            new_image.paste(image2, (image1.width, 0))
+            output_path = os.path.join(build_dir, f'merge_{i//2}.jpg')
+            new_image.save(output_path)
+
+        # 使用檔案總管打開 build 目錄
+        os.startfile(build_dir)
+
+        self.image_per2_merge_button.configure(state='normal')
+
     def about(self):
         # 建立可捲動的文字方塊
         txt = scrolledtext.ScrolledText(
-            self.tab2, width=50, height=20, font=('微軟正黑體', 13))
+            self.tab0, width=50, height=20, font=('微軟正黑體', 13))
         txt.pack(fill='both', expand=True)
         # 將文字放入文字方塊中
         text = "版本：" + self.version + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/16：V1.2 新增批次處理頁籤，新增圖片倆倆合併功能\n" \
             "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
             "2023/03/15：V1.0 初始版釋出\n"
         txt.insert("1.0", text)
@@ -150,6 +207,12 @@ class App(tk.Frame):
 
 if __name__ == "__main__":
     import datetime
+
+    # 設定要處理的目錄
+    build_dir = "build"
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+
     root = tk.Tk()
     style = ttk.Style("superhero")
     root.title("萌芽系列網站圖文原始碼生成器")
