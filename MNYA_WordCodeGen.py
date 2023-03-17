@@ -10,12 +10,14 @@ import os
 import threading
 import json
 import win32api
+import re
 
 # 應用配置
 WINDOW_WIDTH = 410  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.2.1"  # 版本
+VERSION = "V1.2.2"  # 版本
+BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
 CONFIG_FILENAME = "config.json"
@@ -104,6 +106,10 @@ class App(tk.Frame):
 
         # 關閉視窗
         root.destroy()
+
+    ###############
+    ### 主要功能 ###
+    ###############
 
     def create_widgets(self):
 
@@ -214,6 +220,10 @@ class App(tk.Frame):
                 code += "\n"
             pyperclip.copy(code)
 
+    ###############
+    ### 批次處理 ###
+    ###############
+
     def batch_widgets(self):
 
         # 字體設定
@@ -223,10 +233,18 @@ class App(tk.Frame):
                   background=[('pressed', '#A0522D'), ('active', '#8B4513')])
 
         self.image_per2_merge_button = ttk.Button(
-            self.tab2, text="【圖片倆倆合併】點我載入多張圖片並處理", style="HANDLE.TButton", command=self.load_images)
+            self.tab2, text="【圖片倆倆合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.load_images)
         self.image_per2_merge_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併", delay=0.2,
+        ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)", delay=0.2,
                 fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
+        self.sub2txt_button = ttk.Button(
+            self.tab2, text="【字幕檔轉時間軸標記】點我載入字幕檔並處理", style="HANDLE.TButton", command=self.sub2txt)
+        self.sub2txt_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(self.sub2txt_button, msg="全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)", delay=0.2,
+                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
+    ## 批次處理：圖片倆倆合併 ##
 
     def load_images(self):
         self.images = filedialog.askopenfilenames(initialdir=os.getcwd(
@@ -254,13 +272,61 @@ class App(tk.Frame):
             new_image = Image.new('RGB', (width, height))
             new_image.paste(image1, (0, 0))
             new_image.paste(image2, (image1.width, 0))
-            output_path = os.path.join(build_dir, f'merge_{i//2}.jpg')
+            output_path = os.path.join(BUILD_DIR, f'merge_{i//2}.jpg')
             new_image.save(output_path)
 
         # 使用檔案總管打開 build 目錄
-        os.startfile(build_dir)
+        os.startfile(BUILD_DIR)
 
         self.image_per2_merge_button.configure(state='normal')
+
+    ## 批次處理：字幕檔轉時間軸標記 ##
+
+    def sub2txt(self):
+        self.files = filedialog.askopenfilenames()
+        if len(self.files) == 0:
+            messagebox.showinfo("提示", "未選擇任何字幕檔，此次處理結束")
+            return
+
+        for file_path in self.files:
+            filename = os.path.basename(file_path)
+
+            # 讀取檔案
+            with open(file_path, 'r', encoding='utf-16 le') as f:
+                text = f.read()
+
+            # 使用正規表達式進行批次尋找取代的動作
+            text = re.sub(r'\s\n[0-9][0-9][0-9]', '', text)
+            text = re.sub(r'\s\n[0-9][0-9]', '', text)
+            text = re.sub(r'\s\n[0-9]', '', text)
+            text = re.sub(r',[0-9][0-9][0-9] --> .*\n', ' ', text)
+            text = re.sub(r',[0-9][0-9] --> .*\n', ' ', text)
+            text = re.sub(r',[0-9] --> .*\n', ' ', text)
+
+            # 刪除第一行
+            text = text.split('\n', 1)[1]
+
+            # 新增第一行
+            text = '00:00:00 片頭\n' + text
+
+            # 將結果寫入新檔案
+            output_filename = os.path.splitext(filename)[0] + '.txt'
+            output_path = os.path.join(BUILD_DIR, output_filename)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(text)
+
+            # 將結果輸出到終端機
+            with open(output_path, 'r', encoding='utf-8') as f:
+                output_text = f.read()
+                print(f'======== {output_filename} ========')
+                print(output_text)
+
+        # 直接開啟輸出目錄
+        os.startfile(BUILD_DIR)
+
+    ###############
+    ### 關於程式 ###
+    ###############
 
     def about(self):
         # 建立可捲動的文字方塊
@@ -271,6 +337,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/17：V1.2.2 批次處理頁籤內新增字幕檔轉時間軸標記功能\n" \
             "2023/03/17：V1.2.1 自動記憶上次關閉前的視窗位置\n" \
             "2023/03/16：V1.2 新增批次處理頁籤，新增圖片倆倆合併功能\n" \
             "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
@@ -281,10 +348,8 @@ class App(tk.Frame):
 if __name__ == "__main__":
     import datetime
 
-    # 設定要處理的目錄
-    build_dir = "build"
-    if not os.path.exists(build_dir):
-        os.makedirs(build_dir)
+    if not os.path.exists(BUILD_DIR):
+        os.makedirs(BUILD_DIR)
 
     root = tk.Tk()
     style = ttk.Style("superhero")
