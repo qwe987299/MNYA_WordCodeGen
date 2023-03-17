@@ -8,11 +8,34 @@ import pyperclip
 from PIL import Image
 import os
 import threading
+import json
+import win32api
+
+# 應用配置
+WINDOW_WIDTH = 410  # 寬度
+WINDOW_HEIGHT = 430  # 高度
+APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
+VERSION = "V1.2.1"  # 版本
+
+# 配置檔案名稱
+CONFIG_FILENAME = "config.json"
 
 
 class App(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
+
+        # 讀取配置檔案
+        self.config_path = CONFIG_FILENAME
+        self.load_window_position()
+
+        # 設置視窗大小和位置
+        root.geometry(
+            f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{self.window_x}+{self.window_y}")
+
+        # 設置關閉視窗時的回調函數
+        root.protocol("WM_DELETE_WINDOW", self.on_close)
+
         self.tabControl = ttk.Notebook(self)
         # 頁籤 1
         self.tab1 = ttk.Frame(self.tabControl)
@@ -26,12 +49,61 @@ class App(tk.Frame):
         # 設定預設進入頁籤 1
         self.tabControl.pack(expand=1, fill="both")
         self.master = master
-        self.version = "V1.2"
-        self.master.title("萌芽系列網站圖文原始碼生成器 "+self.version)
+        self.master.title(APP_NAME + " " + VERSION)
         self.pack()
         self.create_widgets()
         self.batch_widgets()
         self.about()
+
+    def load_window_position(self):
+        # 如果配置檔案存在，讀取視窗位置
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r") as f:
+                config = json.load(f)
+                self.window_x = config.get("x", 0)
+                self.window_y = config.get("y", 0)
+        else:
+            # 如果配置檔案不存在，使用預設位置
+            self.window_x = 0
+            self.window_y = 0
+
+        # 獲取所有顯示器的資訊
+        monitors = win32api.EnumDisplayMonitors()
+        max_x = 0
+        max_y = 0
+        for monitor in monitors:
+            monitor_info = win32api.GetMonitorInfo(monitor[0])
+            work_area = monitor_info["Work"]
+            if work_area[2] > max_x:
+                max_x = work_area[2]
+            if work_area[3] > max_y:
+                max_y = work_area[3]
+
+        # 確保視窗位置在所有顯示器範圍內
+        if self.window_x < 0:
+            self.window_x = 0
+        elif self.window_x > max_x - WINDOW_WIDTH:
+            self.window_x = max_x - WINDOW_WIDTH
+        if self.window_y < 0:
+            self.window_y = 0
+        elif self.window_y > max_y - WINDOW_HEIGHT:
+            self.window_y = max_y - WINDOW_HEIGHT
+
+    def save_window_position(self):
+        # 保存視窗位置到配置檔案
+        with open(self.config_path, "w") as f:
+            config = {
+                "x": root.winfo_x(),
+                "y": root.winfo_y(),
+            }
+            json.dump(config, f)
+
+    def on_close(self):
+        # 保存視窗位置
+        self.save_window_position()
+
+        # 關閉視窗
+        root.destroy()
 
     def create_widgets(self):
 
@@ -196,9 +268,10 @@ class App(tk.Frame):
             self.tab0, width=50, height=20, font=('微軟正黑體', 13))
         txt.pack(fill='both', expand=True)
         # 將文字放入文字方塊中
-        text = "版本：" + self.version + "\n軟體開發及維護者：萌芽站長\n" \
+        text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/17：V1.2.1 自動記憶上次關閉前的視窗位置\n" \
             "2023/03/16：V1.2 新增批次處理頁籤，新增圖片倆倆合併功能\n" \
             "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
             "2023/03/15：V1.0 初始版釋出\n"
@@ -215,8 +288,8 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     style = ttk.Style("superhero")
-    root.title("萌芽系列網站圖文原始碼生成器")
-    root.geometry("410x430")
+    root.title(APP_NAME)
+    root.geometry("{}x{}".format(WINDOW_WIDTH, WINDOW_HEIGHT))
     root.iconbitmap('icon.ico')
     app = App(master=root)
     app.mainloop()
