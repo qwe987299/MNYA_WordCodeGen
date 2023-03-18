@@ -19,7 +19,7 @@ import re
 WINDOW_WIDTH = 410  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.2.3"  # 版本
+VERSION = "V1.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -32,6 +32,8 @@ class App(tk.Frame):
 
         # 讀取配置檔案
         self.config_path = CONFIG_FILENAME
+        self.is_minimized = tk.BooleanVar(value=False)
+        self.default_config()  # 首次啟動建立配置檔案
         self.load_window_position()
 
         # 設置視窗大小和位置
@@ -48,6 +50,9 @@ class App(tk.Frame):
         # 頁籤 2
         self.tab2 = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tab2, text='批次處理')
+        # 設定頁籤
+        self.tabSet = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tabSet, text='設定')
         # 頁籤 0
         self.tab0 = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tab0, text='關於程式')
@@ -58,7 +63,16 @@ class App(tk.Frame):
         self.pack()
         self.create_widgets()
         self.batch_widgets()
-        self.about()
+        self.setting_widgets()
+        self.about_widgets()
+
+        # 設定視窗的最小化狀態
+        self.master.after(1, self.minimized)
+
+    # 視窗最小化功能
+    def minimized(self):
+        if self.is_minimized.get():
+            self.master.iconify()
 
     def load_window_position(self):
         # 如果配置檔案存在，讀取視窗位置
@@ -67,10 +81,12 @@ class App(tk.Frame):
                 config = json.load(f)
                 self.window_x = config.get("x", 0)
                 self.window_y = config.get("y", 0)
+                self.is_minimized.set(config.get("is_minimized", False))
         else:
             # 如果配置檔案不存在，使用預設位置
             self.window_x = 0
             self.window_y = 0
+            self.is_minimized = False
 
         # 獲取所有顯示器的資訊
         monitors = win32api.EnumDisplayMonitors()
@@ -94,21 +110,35 @@ class App(tk.Frame):
         elif self.window_y > max_y - WINDOW_HEIGHT:
             self.window_y = max_y - WINDOW_HEIGHT
 
-    def save_window_position(self):
-        # 保存視窗位置到配置檔案
-        with open(self.config_path, "w") as f:
-            config = {
-                "x": root.winfo_x(),
-                "y": root.winfo_y(),
-            }
-            json.dump(config, f)
-
     def on_close(self):
-        # 保存視窗位置
-        self.save_window_position()
+        # 保存配置
+        self.save_on_close()
 
         # 關閉視窗
         root.destroy()
+
+    def save_on_close(self):
+        with open(self.config_path, "r") as f:
+            config = json.load(f)
+            # 更新需要修改的鍵值
+            config["x"] = root.winfo_x()
+            config["y"] = root.winfo_y()
+
+            # 保存到配置檔案
+            with open(self.config_path, "w") as f:
+                json.dump(config, f)
+
+    def default_config(self):
+        # 如果配置檔案不存在，使用預設值
+        if not os.path.exists(self.config_path):
+            config = {
+                "x": root.winfo_x(),
+                "y": root.winfo_y(),
+                "is_minimized": False
+            }
+            # 保存全新配置檔
+            with open(self.config_path, "w") as f:
+                json.dump(config, f)
 
     ###############
     ### 主要功能 ###
@@ -344,10 +374,32 @@ class App(tk.Frame):
         os.startfile(BUILD_DIR)
 
     ###############
+    ##### 設定 ####
+    ###############
+
+    def setting_widgets(self):
+        font = tkFont.Font(family="微軟正黑體", size=13)
+        # 勾選是否啟動時最小化
+        is_minimized_button = tk.Checkbutton(self.tabSet, text="啟動時最小化", font=font,
+                                             variable=self.is_minimized,
+                                             command=self.save_config)
+        is_minimized_button.pack(padx=1, pady=10)
+
+    def save_config(self):
+        with open(self.config_path, "r") as f:
+            config = json.load(f)
+            # 更新需要修改的鍵值
+            config["is_minimized"] = self.is_minimized.get()
+
+            # 保存到配置檔案
+            with open(self.config_path, "w") as f:
+                json.dump(config, f)
+
+    ###############
     ### 關於程式 ###
     ###############
 
-    def about(self):
+    def about_widgets(self):
         # 建立可捲動的文字方塊
         txt = scrolledtext.ScrolledText(
             self.tab0, width=50, height=20, font=('微軟正黑體', 13))
@@ -356,6 +408,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/18：V1.3 新增設定頁籤，新增啟動時最小化功能\n" \
             "2023/03/18：V1.2.3 主要功能新增勾選選項「包含\"▼\"」，與「包含\"▲\"」只能擇一\n" \
             "2023/03/17：V1.2.2 批次處理頁籤內新增字幕檔轉時間軸標記功能\n" \
             "2023/03/17：V1.2.1 自動記憶上次關閉前的視窗位置\n" \
