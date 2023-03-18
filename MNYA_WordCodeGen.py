@@ -12,11 +12,14 @@ import json
 import win32api
 import re
 
+# 測試指令：python MNYA_WordCodeGen.py
+# 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
+
 # 應用配置
 WINDOW_WIDTH = 410  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.2.2"  # 版本
+VERSION = "V1.2.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -143,9 +146,15 @@ class App(tk.Frame):
         tk.Checkbutton(include_frame, text="包含前文",
                        variable=self.include_previous_var, font=font).pack()
 
-        self.include_symbol_var = tk.BooleanVar(value=True)
+        self.include_symbol_up = tk.BooleanVar(value=True)
         tk.Checkbutton(include_frame, text="包含\"▲\"",
-                       variable=self.include_symbol_var, font=font).pack()
+                       variable=self.include_symbol_up, font=font,
+                       command=lambda: self.update_checkbutton_state(self.include_symbol_up)).pack()
+
+        self.include_symbol_down = tk.BooleanVar(value=False)
+        tk.Checkbutton(include_frame, text="包含\"▼\"",
+                       variable=self.include_symbol_down, font=font,
+                       command=lambda: self.update_checkbutton_state(self.include_symbol_down)).pack()
 
         # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
         input_frame = tk.Frame(self.tab1)
@@ -198,6 +207,14 @@ class App(tk.Frame):
         ttk.Button(input_frame, text="📑 生成圖文原始碼到剪貼簿", style="OK.TButton",
                    command=self.generate_code).pack(padx=5, pady=5)
 
+    # 確保只能選擇其中一個按鈕的功能
+    def update_checkbutton_state(self, selected_var):
+        if selected_var.get():
+            if selected_var is self.include_symbol_up:
+                self.include_symbol_down.set(False)
+            else:
+                self.include_symbol_up.set(False)
+
     def generate_code(self):
         site_code = self.site_var.get()
         year = self.year_var.get()
@@ -213,8 +230,10 @@ class App(tk.Frame):
 
         for i in range(1, image_num+1):
             img_url = f"https://mnya.tw/{site_code}/wp-content/uploads/{year}/{article}-{i}.jpg"
+            if self.include_symbol_down.get():
+                code += "▼\n"
             code += f'<img src="{img_url}" width="{image_width}" height="{image_height}" />'
-            if self.include_symbol_var.get():
+            if self.include_symbol_up.get():
                 code += "\n▲\n"
             else:
                 code += "\n"
@@ -235,8 +254,8 @@ class App(tk.Frame):
         self.image_per2_merge_button = ttk.Button(
             self.tab2, text="【圖片倆倆合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.load_images)
         self.image_per2_merge_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)", delay=0.2,
-                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+        ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)",
+                delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
 
         self.sub2txt_button = ttk.Button(
             self.tab2, text="【字幕檔轉時間軸標記】點我載入字幕檔並處理", style="HANDLE.TButton", command=self.sub2txt)
@@ -337,6 +356,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/18：V1.2.3 主要功能新增勾選選項「包含\"▼\"」，與「包含\"▲\"」只能擇一\n" \
             "2023/03/17：V1.2.2 批次處理頁籤內新增字幕檔轉時間軸標記功能\n" \
             "2023/03/17：V1.2.1 自動記憶上次關閉前的視窗位置\n" \
             "2023/03/16：V1.2 新增批次處理頁籤，新增圖片倆倆合併功能\n" \
