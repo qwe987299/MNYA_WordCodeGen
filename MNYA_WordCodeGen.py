@@ -11,15 +11,16 @@ import threading
 import json
 import win32api
 import re
+import webbrowser
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
 
 # 應用配置
-WINDOW_WIDTH = 410  # 寬度
+WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.1"  # 版本
+VERSION = "V1.3.2"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -53,6 +54,9 @@ class App(tk.Frame):
         # 頁籤 3
         self.tab3 = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tab3, text='複製取用')
+        # 頁籤 4
+        self.tab4 = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tab4, text='快速連結')
         # 設定頁籤
         self.tabSet = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tabSet, text='設定')
@@ -67,6 +71,7 @@ class App(tk.Frame):
         self.create_widgets()
         self.batch_widgets()
         self.copy_widgets()
+        self.links_widgets()
         self.setting_widgets()
         self.about_widgets()
 
@@ -151,6 +156,7 @@ class App(tk.Frame):
     def create_widgets(self):
 
         # 字體設定
+        font14 = tkFont.Font(family="微軟正黑體", size=14)
         font = tkFont.Font(family="微軟正黑體", size=13)
         style = ttk.Style()
         style.configure('OK.TButton', font=('微軟正黑體', 13), background='green',
@@ -168,31 +174,31 @@ class App(tk.Frame):
                       ("🎮 萌芽Game網", "games")]
         self.site_var = tk.StringVar(value=self.sites[0][1])
         site_frame = tk.Frame(self.tab1)
-        site_frame.pack(side=tk.LEFT, padx=5, pady=5)
+        site_frame.pack(side=tk.LEFT, padx=10, pady=5)
         for site, code in self.sites:
             tk.Radiobutton(site_frame, text=site,
-                           variable=self.site_var, value=code, font=font, indicatoron=False, width=13, height=1).pack(anchor=tk.W)
+                           variable=self.site_var, value=code, font=font14, indicatoron=False, width=15, height=1).pack(anchor=tk.W)
 
         include_frame = tk.Frame(site_frame)
         include_frame.pack(padx=1, pady=10)
 
         self.include_previous_var = tk.BooleanVar(value=True)
         tk.Checkbutton(include_frame, text="包含前文",
-                       variable=self.include_previous_var, font=font).pack()
+                       variable=self.include_previous_var, font=font14).pack()
 
         self.include_symbol_up = tk.BooleanVar(value=True)
         tk.Checkbutton(include_frame, text="包含\"▲\"",
-                       variable=self.include_symbol_up, font=font,
+                       variable=self.include_symbol_up, font=font14,
                        command=lambda: self.update_checkbutton_state(self.include_symbol_up)).pack()
 
         self.include_symbol_down = tk.BooleanVar(value=False)
         tk.Checkbutton(include_frame, text="包含\"▼\"",
-                       variable=self.include_symbol_down, font=font,
+                       variable=self.include_symbol_down, font=font14,
                        command=lambda: self.update_checkbutton_state(self.include_symbol_down)).pack()
 
         # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
         input_frame = tk.Frame(self.tab1)
-        input_frame.pack(side=tk.RIGHT, padx=5, pady=5)
+        input_frame.pack(side=tk.RIGHT, padx=10, pady=5)
         self.year_var = tk.StringVar(value=str(datetime.datetime.now().year))
         self.article_var = tk.StringVar(value="1")
         self.image_num_var = tk.StringVar(value="10")
@@ -238,7 +244,7 @@ class App(tk.Frame):
                   command=lambda: set_image_size(1920, 1080)).pack(side=tk.LEFT, padx=1, pady=1)
 
         # 生成圖文原始碼按鈕
-        ttk.Button(input_frame, text="📑 生成圖文原始碼到剪貼簿", style="OK.TButton",
+        ttk.Button(input_frame, text="📑 生成原始碼到剪貼簿", style="OK.TButton",
                    command=self.generate_code).pack(padx=5, pady=5)
 
     # 確保只能選擇其中一個按鈕的功能
@@ -417,6 +423,7 @@ class App(tk.Frame):
 
         for i, button in enumerate(buttons):
             new_button = tk.Button(button_frame, text=button[0], font=font,
+                                   width=6, height=1,
                                    command=lambda text=button[1]: self.copy_text(text))
             new_button.grid(row=i//6, column=i % 6, padx=1, pady=1)
 
@@ -424,6 +431,66 @@ class App(tk.Frame):
         root.clipboard_clear()  # 清除剪貼板內容
         root.clipboard_append(text)  # 將指定文字添加到剪貼板
         root.update()  # 強制更新 tkinter 的 GUI 介面
+
+    ###############
+    ### 快速連結 ###
+    ###############
+
+    def links_widgets(self):
+        font = tkFont.Font(family="微軟正黑體", size=14)
+
+        # 建立一個 Canvas，設定為可捲動的
+        canvas = tk.Canvas(self.tab4)
+        canvas.pack(side='left', fill='both', expand=True)
+
+        # 在 Canvas 上建立一個 Frame，用來放置按鈕
+        button_frame = tk.Frame(canvas)
+
+        # 把 Frame 放進 Scrollbar 裡面
+        scrollbar = tk.Scrollbar(
+            self.tab4, orient='vertical', command=canvas.yview)
+        scrollbar.pack(side='right', fill='y')
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.create_window((0, 0), window=button_frame, anchor='nw')
+
+        # 設定 Canvas 的捲動範圍
+        button_frame.bind('<Configure>', lambda e: canvas.configure(
+            scrollregion=canvas.bbox('all')))
+
+        # 設定捲動事件
+        def on_canvas_mousewheel(event):
+            canvas.yview_scroll(-1 * int(event.delta/120), 'units')
+        canvas.bind('<Enter>', lambda e: canvas.bind_all(
+            '<MouseWheel>', on_canvas_mousewheel))
+        canvas.bind('<Leave>', lambda e: canvas.unbind_all('<MouseWheel>'))
+
+        buttons = [
+            ["🌳 萌芽網頁", "https://mnya.tw/"],
+            ["💻 萌芽綜合天地", "https://mnya.tw/cc/"],
+            ["⛰ 萌芽爬山網", "https://mnya.tw/k3/"],
+            ["🍹 萌芽悠遊網", "https://mnya.tw/yo/"],
+            ["🌏 萌芽地科網", "https://mnya.tw/es/"],
+            ["🎵 萌芽音樂網", "https://mnya.tw/ms/"],
+            ["🖼 萌芽二次元", "https://mnya.tw/2d/"],
+            ["🎮 萌芽Game網", "https://mnya.tw/games/"],
+            ["萌芽大數據", "https://mnya.tw/bigdata/"],
+            ["萌芽開發", "https://mnya.tw/dv/"],
+            ["萌芽下載站", "https://mnya.tw/dl/"],
+            ["萌芽攝影網", "https://mnya.tw/pt/"],
+            ["方塊鴨之家", "https://mnya.tw/blockduck"],
+            ["關於本站", "https://mnya.tw/about"],
+            ["萌芽網站導覽", "https://mnya.tw/map.html"],
+            ["萌芽搜尋中心", "https://mnya.tw/search"]
+        ]
+
+        for i, button in enumerate(buttons):
+            new_button = tk.Button(button_frame, text=button[0], font=font,
+                                   width=18, height=1,
+                                   command=lambda text=button[1]: self.open_browser(text))
+            new_button.grid(row=i//2, column=i % 2, padx=1, pady=1)
+
+    def open_browser(self, url):
+        webbrowser.open_new_tab(url)
 
     ###############
     ##### 設定 ####
@@ -460,6 +527,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/19：V1.3.2 新增快速連結頁籤\n" \
             "2023/03/18：V1.3.1 新增複製取用頁籤\n" \
             "2023/03/18：V1.3 新增設定頁籤，新增啟動時最小化功能\n" \
             "2023/03/18：V1.2.3 主要功能新增勾選選項「包含\"▼\"」，與「包含\"▲\"」只能擇一\n" \
