@@ -19,7 +19,7 @@ import re
 WINDOW_WIDTH = 410  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3"  # 版本
+VERSION = "V1.3.1"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -50,6 +50,9 @@ class App(tk.Frame):
         # 頁籤 2
         self.tab2 = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tab2, text='批次處理')
+        # 頁籤 3
+        self.tab3 = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tab3, text='複製取用')
         # 設定頁籤
         self.tabSet = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tabSet, text='設定')
@@ -63,6 +66,7 @@ class App(tk.Frame):
         self.pack()
         self.create_widgets()
         self.batch_widgets()
+        self.copy_widgets()
         self.setting_widgets()
         self.about_widgets()
 
@@ -374,6 +378,54 @@ class App(tk.Frame):
         os.startfile(BUILD_DIR)
 
     ###############
+    ### 複製取用 ###
+    ###############
+
+    def copy_widgets(self):
+        font = tkFont.Font(family="微軟正黑體", size=13)
+
+        # 建立一個 Canvas，設定為可捲動的
+        canvas = tk.Canvas(self.tab3)
+        canvas.pack(side='left', fill='both', expand=True)
+
+        # 在 Canvas 上建立一個 Frame，用來放置按鈕
+        button_frame = tk.Frame(canvas)
+
+        # 把 Frame 放進 Scrollbar 裡面
+        scrollbar = tk.Scrollbar(
+            self.tab3, orient='vertical', command=canvas.yview)
+        scrollbar.pack(side='right', fill='y')
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.create_window((0, 0), window=button_frame, anchor='nw')
+
+        # 設定 Canvas 的捲動範圍
+        button_frame.bind('<Configure>', lambda e: canvas.configure(
+            scrollregion=canvas.bbox('all')))
+
+        # 設定捲動事件
+        def on_canvas_mousewheel(event):
+            canvas.yview_scroll(-1 * int(event.delta/120), 'units')
+        canvas.bind('<Enter>', lambda e: canvas.bind_all(
+            '<MouseWheel>', on_canvas_mousewheel))
+        canvas.bind('<Leave>', lambda e: canvas.unbind_all('<MouseWheel>'))
+
+        buttons = [["發圖文", "🆕"], ["發公告", "ℹ️"], ["發影片", "🎬"],
+                   ["給按讚", "👍"], ["給倒讚", "👎"], ["比中指", "🖕"],
+                   ["YT嵌入", "<iframe src=\"https://www.youtube.com/embed/\" width=\"1024\" height=\"576\" frameborder=\"0\" allowfullscreen=\"allowfullscreen\"></iframe>\n▲ 影片欣賞<strong>《》</strong>"], ["航跡圖",
+                                                                                                                                                                                                         "<iframe src='XXX' width='1024' height='768'></iframe>\n▲ 航跡圖（<a href='XXX' target='_blank' rel='noopener noreferrer'>GPX 下載</a>）。"], ["NSFW", "🔞"], ["發警訊", "⚠️"], ["沒問題", "👌"], ["方綠勾", "✅"], ["方綠叉", "❎"], ["方塊零", "0️⃣"], ["方塊一", "1️⃣"], ["方塊二", "2️⃣"], ["方塊三", "3️⃣"], ["方塊四", "4️⃣"],
+                   ["方塊五", "5️⃣"], ["方塊六", "6️⃣"], ["方塊七", "7️⃣"], ["方塊八", "8️⃣"], ["方塊九", "9️⃣"], ["方塊十", "🔟"]]
+
+        for i, button in enumerate(buttons):
+            new_button = tk.Button(button_frame, text=button[0], font=font,
+                                   command=lambda text=button[1]: self.copy_text(text))
+            new_button.grid(row=i//6, column=i % 6, padx=1, pady=1)
+
+    def copy_text(self, text):
+        root.clipboard_clear()  # 清除剪貼板內容
+        root.clipboard_append(text)  # 將指定文字添加到剪貼板
+        root.update()  # 強制更新 tkinter 的 GUI 介面
+
+    ###############
     ##### 設定 ####
     ###############
 
@@ -408,6 +460,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/18：V1.3.1 新增複製取用頁籤\n" \
             "2023/03/18：V1.3 新增設定頁籤，新增啟動時最小化功能\n" \
             "2023/03/18：V1.2.3 主要功能新增勾選選項「包含\"▼\"」，與「包含\"▲\"」只能擇一\n" \
             "2023/03/17：V1.2.2 批次處理頁籤內新增字幕檔轉時間軸標記功能\n" \
