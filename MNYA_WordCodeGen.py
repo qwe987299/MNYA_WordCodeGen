@@ -12,6 +12,8 @@ import json
 import win32api
 import re
 import webbrowser
+import gpxpy
+import pyproj
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -20,7 +22,7 @@ import webbrowser
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.2"  # 版本
+VERSION = "V1.3.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -303,6 +305,12 @@ class App(tk.Frame):
         ToolTip(self.sub2txt_button, msg="全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)", delay=0.2,
                 fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
 
+        self.convert_gpx_button = ttk.Button(
+            self.tab2, text="【航跡檔轉航點座標 】點我載入航跡檔並處理", style="HANDLE.TButton", command=self.convert_gpx_files)
+        self.convert_gpx_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(self.convert_gpx_button, msg="全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)", delay=0.2,
+                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
     ## 批次處理：圖片倆倆合併 ##
 
     def load_images(self):
@@ -379,6 +387,81 @@ class App(tk.Frame):
                 output_text = f.read()
                 print(f'======== {output_filename} ========')
                 print(output_text)
+
+        # 直接開啟輸出目錄
+        os.startfile(BUILD_DIR)
+
+    ## 批次處理：航跡檔轉航點座標 ##
+
+    def convert_coordinate(self, org, to, lon, lat, is_int):
+        # 座標轉換
+        transformer = pyproj.Transformer.from_crs(org, to, always_xy=True)
+        lon, lat = transformer.transform(lon, lat)
+        if is_int:
+            return int(lon), int(lat)
+        else:
+            return lon, lat
+
+    def convert_gpx_files(self):
+        # 定義投影坐標系
+        twd67_longlat = pyproj.CRS(
+            "+proj=longlat +ellps=aust_SA +towgs84=-752,-358,-179,-.0000011698,.0000018398,.0000009822,.00002329 +no_defs"
+        )  # TWD67 經緯度
+        twd67_tm2 = pyproj.CRS(
+            "+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 "
+            "+ellps=aust_SA +towgs84=-752,-358,-179,-0.0000011698,0.0000018398,0.0000009822,0.00002329 +units=m +no_defs"
+        )  # TWD67 二度分帶
+        twd97_longlat = pyproj.CRS(
+            "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+        )  # TWD97(WGS84) 經緯度
+        twd97_tm2 = pyproj.CRS(
+            "+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs"
+        )  # TWD97 二度分帶
+
+        # 開啟檔案選擇對話框，讓使用者選擇要載入的檔案
+        file_paths = tk.filedialog.askopenfilenames(
+            title="選擇 GPX 檔案",
+            filetypes=[("GPX files", "*.gpx")])
+
+        # 如果沒有選擇任何檔案，顯示提示訊息
+        if not file_paths:
+            messagebox.showinfo("提示", "未選擇任何航跡檔，此次處理結束")
+            return
+
+        # 讀取每個檔案，提取所需資訊，並輸出到 .txt 檔案
+        for file_path in file_paths:
+            # 讀取 .gpx 檔案
+            with open(file_path, "r", encoding="utf-8") as gpx_file:
+                gpx = gpxpy.parse(gpx_file)
+
+            # 提取所需資訊
+            wpt_info = []
+            for wpt in gpx.waypoints:
+                name = wpt.name
+                lon = wpt.longitude
+                lat = wpt.latitude
+                lon_twd67_longlat, lat_twd67_longlat = self.convert_coordinate(
+                    twd97_longlat, twd67_longlat, lon, lat, False)
+                lon_twd67_tm2_T, lat_twd67_tm2_T = self.convert_coordinate(
+                    twd97_longlat, twd67_tm2, lon, lat, True)
+                lon_twd67_tm2_F, lat_twd67_tm2_F = self.convert_coordinate(
+                    twd97_longlat, twd67_tm2, lon, lat, False)
+                lon_twd97_tm2_T, lat_twd97_tm2_T = self.convert_coordinate(
+                    twd97_longlat, twd97_tm2, lon, lat, True)
+                lon_twd97_tm2_F, lat_twd97_tm2_F = self.convert_coordinate(
+                    twd97_longlat, twd97_tm2, lon, lat, False)
+                wpt_info.append(
+                    f"{name}\n▶️ TWD67 經緯度座標值: {lon_twd67_longlat}, {lat_twd67_longlat} \
+                    \n▶️ TWD67 二度分帶座標值: {lon_twd67_tm2_T}, {lat_twd67_tm2_T} ({lon_twd67_tm2_F}, {lat_twd67_tm2_F}) \
+                    \n▶️ TWD97(WGS84) 經緯度座標值: {wpt.longitude}, {wpt.latitude} \
+                    \n▶️ TWD97 二度分帶座標值: {lon_twd97_tm2_T}, {lat_twd97_tm2_T} ({lon_twd97_tm2_F}, {lat_twd97_tm2_F}) \
+                    \n\n")
+
+            # 將結果輸出到 .txt 檔案
+            output_file_path = os.path.join("build", os.path.splitext(
+                os.path.basename(file_path))[0] + ".txt")
+            with open(output_file_path, "w", encoding="utf-8") as output_file:
+                output_file.writelines(wpt_info)
 
         # 直接開啟輸出目錄
         os.startfile(BUILD_DIR)
@@ -527,6 +610,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/20：V1.3.3 批次處理頁籤內新增航跡檔轉航點座標功能\n" \
             "2023/03/19：V1.3.2 新增快速連結頁籤\n" \
             "2023/03/18：V1.3.1 新增複製取用頁籤\n" \
             "2023/03/18：V1.3 新增設定頁籤，新增啟動時最小化功能\n" \
