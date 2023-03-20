@@ -653,7 +653,13 @@ class App(tk.Frame):
             "2023/03/17：V1.2.1 自動記憶上次關閉前的視窗位置\n" \
             "2023/03/16：V1.2 新增批次處理頁籤，新增圖片倆倆合併功能\n" \
             "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
-            "2023/03/15：V1.0 初始版釋出\n"
+            "2023/03/15：V1.0 初始版釋出\n" \
+            "\n ■ MIT License ■ \n" \
+            "\nCopyright (c) 2023 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
+            "\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n" \
+            "\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n" \
+            "\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
+
         txt.insert("1.0", text)
 
 
