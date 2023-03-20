@@ -14,6 +14,7 @@ import re
 import webbrowser
 import gpxpy
 import pyproj
+import pydub
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -22,7 +23,7 @@ import pyproj
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.3"  # 版本
+VERSION = "V1.3.4"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -311,6 +312,12 @@ class App(tk.Frame):
         ToolTip(self.convert_gpx_button, msg="全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)", delay=0.2,
                 fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
 
+        self.merge_audio_button = ttk.Button(
+            self.tab2, text="【音訊合併】點我載入音訊檔並處理", style="HANDLE.TButton", command=self.merge_audio)
+        self.merge_audio_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(self.merge_audio_button, msg="全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)", delay=0.2,
+                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
     ## 批次處理：圖片倆倆合併 ##
 
     def load_images(self):
@@ -466,6 +473,32 @@ class App(tk.Frame):
         # 直接開啟輸出目錄
         os.startfile(BUILD_DIR)
 
+    ## 批次處理：音訊合併 ##
+
+    def merge_audio(self):
+        # 選擇多個音訊檔案
+        files = filedialog.askopenfilenames(
+            filetypes=[("音訊檔案", "*.mp3;*.wav")])
+        if len(files) < 2:
+            messagebox.showinfo("提示", "未選擇兩個（含）以上的音訊檔，此次處理結束")
+            return
+        # 載入音訊檔案
+        audio_files = [pydub.AudioSegment.from_file(
+            file) for file in files]
+        # 合併音訊檔案
+        combined_audio = pydub.AudioSegment.empty()
+        for audio in audio_files:
+            combined_audio += audio
+        # 輸出合併後的音訊檔案
+        output_file = os.path.join(BUILD_DIR, os.path.splitext(
+            os.path.basename(files[0]))[0] + "_merge.mp3")
+        combined_audio.export(output_file, format="mp3", bitrate="320k")
+        # 顯示訊息視窗
+        tk.messagebox.showinfo("提示", f"音訊檔案已合併，並儲存至 {output_file}")
+
+        # 直接開啟輸出目錄
+        os.startfile(BUILD_DIR)
+
     ###############
     ### 複製取用 ###
     ###############
@@ -610,6 +643,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/20：V1.3.4 批次處理頁籤內新增音訊合併功能，需依賴 ffmpeg.exe 及 ffprobe.exe\n" \
             "2023/03/20：V1.3.3 批次處理頁籤內新增航跡檔轉航點座標功能\n" \
             "2023/03/19：V1.3.2 新增快速連結頁籤\n" \
             "2023/03/18：V1.3.1 新增複製取用頁籤\n" \
