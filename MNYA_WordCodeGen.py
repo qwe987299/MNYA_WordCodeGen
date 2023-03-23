@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.4"  # 版本
+VERSION = "V1.3.5"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -531,11 +531,8 @@ class App(tk.Frame):
             '<MouseWheel>', on_canvas_mousewheel))
         canvas.bind('<Leave>', lambda e: canvas.unbind_all('<MouseWheel>'))
 
-        buttons = [["發圖文", "🆕"], ["發公告", "ℹ️"], ["發影片", "🎬"],
-                   ["給按讚", "👍"], ["給倒讚", "👎"], ["比中指", "🖕"],
-                   ["YT嵌入", "<iframe src=\"https://www.youtube.com/embed/\" width=\"1024\" height=\"576\" frameborder=\"0\" allowfullscreen=\"allowfullscreen\"></iframe>\n▲ 影片欣賞<strong>《》</strong>"], ["航跡圖",
-                                                                                                                                                                                                         "<iframe src='XXX' width='1024' height='768'></iframe>\n▲ 航跡圖（<a href='XXX' target='_blank' rel='noopener noreferrer'>GPX 下載</a>）。"], ["NSFW", "🔞"], ["發警訊", "⚠️"], ["沒問題", "👌"], ["方綠勾", "✅"], ["方綠叉", "❎"], ["方塊零", "0️⃣"], ["方塊一", "1️⃣"], ["方塊二", "2️⃣"], ["方塊三", "3️⃣"], ["方塊四", "4️⃣"],
-                   ["方塊五", "5️⃣"], ["方塊六", "6️⃣"], ["方塊七", "7️⃣"], ["方塊八", "8️⃣"], ["方塊九", "9️⃣"], ["方塊十", "🔟"]]
+        buttons = [["發圖文", "🆕"], ["發公告", "ℹ️"], ["發影片", "🎬"], ["發討論", "💬"], ["發連結", "🔗"], ["發警訊", "⚠️"], ["給按讚", "👍"], ["給倒讚", "👎"], ["比中指", "🖕"],
+                   ["YT嵌入", "<iframe src=\"https://www.youtube.com/embed/\" width=\"1024\" height=\"576\" frameborder=\"0\" allowfullscreen=\"allowfullscreen\"></iframe>\n▲ 影片欣賞<strong>《》</strong>"], ["航跡圖", "<iframe src='XXX' width='1024' height='768'></iframe>\n▲ 航跡圖（<a href='XXX' target='_blank' rel='noopener noreferrer'>GPX 下載</a>）。"], ["NSFW", "🔞"], ["沒問題", "👌"], ["方綠勾", "✅"], ["方綠叉", "❎"], ["一張紙", "📄"], ["筆跟紙", "📝"], ["方塊零", "0️⃣"], ["方塊一", "1️⃣"], ["方塊二", "2️⃣"], ["方塊三", "3️⃣"], ["方塊四", "4️⃣"], ["方塊五", "5️⃣"], ["方塊六", "6️⃣"], ["方塊七", "7️⃣"], ["方塊八", "8️⃣"], ["方塊九", "9️⃣"], ["方塊十", "🔟"], ["一座山", "⛰"], ["調色板", "🎨"]]
 
         for i, button in enumerate(buttons):
             new_button = tk.Button(button_frame, text=button[0], font=font,
@@ -582,6 +579,7 @@ class App(tk.Frame):
 
         buttons = [
             ["🌳 萌芽網頁", "https://mnya.tw/"],
+            ["💬 萌芽論壇", "https://bbs.mnya.tw"],
             ["💻 萌芽綜合天地", "https://mnya.tw/cc/"],
             ["⛰ 萌芽爬山網", "https://mnya.tw/k3/"],
             ["🍹 萌芽悠遊網", "https://mnya.tw/yo/"],
@@ -643,6 +641,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/23：V1.3.5 複製取用、快速連結內容更新\n" \
             "2023/03/20：V1.3.4 批次處理頁籤內新增音訊合併功能，需依賴 ffmpeg.exe 及 ffprobe.exe\n" \
             "2023/03/20：V1.3.3 批次處理頁籤內新增航跡檔轉航點座標功能\n" \
             "2023/03/19：V1.3.2 新增快速連結頁籤\n" \
