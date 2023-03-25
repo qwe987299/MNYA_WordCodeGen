@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.5"  # 版本
+VERSION = "V1.3.6"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -300,6 +300,12 @@ class App(tk.Frame):
         ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)",
                 delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
 
+        self.split_and_merge_image_button = ttk.Button(
+            self.tab2, text="【圖片左右分割後上下合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.process_split_and_merge_image)
+        self.split_and_merge_image_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(self.split_and_merge_image_button, msg="每張圖左右切半後將右半部從下方合併，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)",
+                delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
         self.sub2txt_button = ttk.Button(
             self.tab2, text="【字幕檔轉時間軸標記】點我載入字幕檔並處理", style="HANDLE.TButton", command=self.sub2txt)
         self.sub2txt_button.pack(fill='both', padx=2, pady=2)
@@ -353,6 +359,49 @@ class App(tk.Frame):
         os.startfile(BUILD_DIR)
 
         self.image_per2_merge_button.configure(state='normal')
+
+    ## 批次處理：圖片左右分割後上下合併 ##
+
+    def split_and_merge_image(self, file_path):
+        # 開啟圖片
+        image = Image.open(file_path)
+
+        # 取得圖片大小
+        width, height = image.size
+
+        # 左右分割
+        left = image.crop((0, 0, width/2, height))
+        right = image.crop((width/2, 0, width, height))
+
+        # 計算新圖片大小
+        new_width = width/2
+        new_height = height * 2
+
+        # 創建新圖片
+        new_image = Image.new(
+            'RGB', (int(new_width), int(new_height)), (255, 255, 255))
+
+        # 將左右兩半部分合併到新圖片
+        new_image.paste(left, (0, 0))
+        new_image.paste(right, (0, height))
+
+        # 輸出圖片至 build 目錄
+        output_path = os.path.join('build', os.path.splitext(
+            os.path.basename(file_path))[0] + '.jpg')
+        new_image.save(output_path)
+
+    def process_split_and_merge_image(self):
+        # 選擇多張圖片
+        file_paths = filedialog.askopenfilenames(
+            title='Select image files', filetypes=[("Image files", "*.jpg *.png *.jpeg")]
+        )
+
+        # 依次處理每個圖片
+        for file_path in file_paths:
+            self.split_and_merge_image(file_path)
+
+        # 完成後打開 build 目錄
+        os.startfile('build')
 
     ## 批次處理：字幕檔轉時間軸標記 ##
 
@@ -641,6 +690,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/25：V1.3.6 批次處理頁籤內新增圖片左右分割後上下合併功能\n" \
             "2023/03/23：V1.3.5 複製取用、快速連結內容更新\n" \
             "2023/03/20：V1.3.4 批次處理頁籤內新增音訊合併功能，需依賴 ffmpeg.exe 及 ffprobe.exe\n" \
             "2023/03/20：V1.3.3 批次處理頁籤內新增航跡檔轉航點座標功能\n" \
