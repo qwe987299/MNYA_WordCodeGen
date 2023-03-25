@@ -34,8 +34,11 @@ Windows 10 64bit 以上
 
 ## 打包備註
 
-如果要將 .py 檔案打包成可執行檔 .exe 需透過以下指令：
-pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
+如果要將 .py 檔案打包成可執行檔 .exe 需透過以下指令：<br>
+pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py<br>
+
+超快速懶人打包指令（請先關閉程式）：<br>
+start run.bat<br>
 
 ## 舊版本截圖
 
