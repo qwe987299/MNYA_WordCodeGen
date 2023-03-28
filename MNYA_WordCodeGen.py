@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.7"  # 版本
+VERSION = "V1.3.8"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -336,6 +336,9 @@ class App(tk.Frame):
         # 要求使用者選擇圖片
         self.image_paths = filedialog.askopenfilenames(initialdir=os.getcwd(
         ), title="選擇圖片", filetypes=[("Image files", "*.jpg *.png *.jpeg")])
+        if len(self.image_paths) == 0:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
 
         # 載入浮水印圖片
         watermark = Image.open("watermark.png").convert("RGBA")
@@ -445,6 +448,9 @@ class App(tk.Frame):
         file_paths = filedialog.askopenfilenames(
             title='選擇圖片', filetypes=[("Image files", "*.jpg *.png *.jpeg")]
         )
+        if len(file_paths) == 0:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
 
         # 依次處理每個圖片
         for file_path in file_paths:
@@ -740,6 +746,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/28：V1.3.8 修正錯誤\n" \
             "2023/03/28：V1.3.7 批次處理頁籤內新增萌芽網頁浮水印功能\n" \
             "2023/03/25：V1.3.6 批次處理頁籤內新增圖片左右分割後上下合併功能\n" \
             "2023/03/23：V1.3.5 複製取用、快速連結內容更新\n" \
