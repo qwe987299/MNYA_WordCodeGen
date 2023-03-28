@@ -5,7 +5,7 @@ import ttkbootstrap as ttk
 from tktooltip import ToolTip
 from ttkbootstrap.constants import *
 import pyperclip
-from PIL import Image
+from PIL import Image, ImageEnhance
 import os
 import threading
 import json
@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.6"  # 版本
+VERSION = "V1.3.7"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -294,6 +294,12 @@ class App(tk.Frame):
         style.map('HANDLE.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
                   background=[('pressed', '#A0522D'), ('active', '#8B4513')])
 
+        self.watermark_process_images_button = ttk.Button(
+            self.tab2, text="【萌芽網頁浮水印】點我載入圖片並處理", style="HANDLE.TButton", command=self.watermark_process_images)
+        self.watermark_process_images_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(self.watermark_process_images_button, msg="為每張圖片上萌芽網頁浮水印，\n位置會在圖片的右下角，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)",
+                delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
         self.image_per2_merge_button = ttk.Button(
             self.tab2, text="【圖片倆倆合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.load_images)
         self.image_per2_merge_button.pack(fill='both', padx=2, pady=2)
@@ -323,6 +329,50 @@ class App(tk.Frame):
         self.merge_audio_button.pack(fill='both', padx=2, pady=2)
         ToolTip(self.merge_audio_button, msg="全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)", delay=0.2,
                 fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
+    ## 批次處理：萌芽網頁浮水印 ##
+
+    def watermark_process_images(self):
+        # 要求使用者選擇圖片
+        self.image_paths = filedialog.askopenfilenames(initialdir=os.getcwd(
+        ), title="選擇圖片", filetypes=[("Image files", "*.jpg *.png *.jpeg")])
+
+        # 載入浮水印圖片
+        watermark = Image.open("watermark.png").convert("RGBA")
+        watermark_alpha = watermark.split()[-1]
+        watermark_alpha = ImageEnhance.Brightness(watermark_alpha).enhance(0.7)
+        watermark.putalpha(watermark_alpha)
+
+        # 處理每張圖片
+        for image_path in self.image_paths:
+            # 載入圖片
+            image = Image.open(image_path)
+
+            # 如有必要，調整圖片大小以適應浮水印
+            if image.size[0] < 100 or image.size[1] < 50:
+                ratio = max(100 / image.size[0], 50 / image.size[1])
+                new_size = (int(image.size[0] * ratio),
+                            int(image.size[1] * ratio))
+                image = image.resize(new_size)
+
+            # 建立新圖片並加上浮水印
+            new_image = Image.new("RGBA", image.size, (0, 0, 0, 0))
+            new_image.paste(image, (0, 0))
+
+            # 加上浮水印
+            watermark_size = watermark.size
+            watermark_position = (
+                image.size[0] - watermark_size[0] - 3, image.size[1] - watermark_size[1] - 1)
+            new_image.alpha_composite(watermark, watermark_position)
+
+            # 儲存新圖片
+            filename = os.path.basename(image_path)
+            output_path = os.path.join(
+                "build", os.path.splitext(filename)[0] + ".jpg")
+            new_image.convert("RGB").save(output_path)
+
+        # 用檔案總管打開 build 目錄
+        os.startfile("build")
 
     ## 批次處理：圖片倆倆合併 ##
 
@@ -393,7 +443,7 @@ class App(tk.Frame):
     def process_split_and_merge_image(self):
         # 選擇多張圖片
         file_paths = filedialog.askopenfilenames(
-            title='Select image files', filetypes=[("Image files", "*.jpg *.png *.jpeg")]
+            title='選擇圖片', filetypes=[("Image files", "*.jpg *.png *.jpeg")]
         )
 
         # 依次處理每個圖片
@@ -690,6 +740,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2023/03/28：V1.3.7 批次處理頁籤內新增萌芽網頁浮水印功能\n" \
             "2023/03/25：V1.3.6 批次處理頁籤內新增圖片左右分割後上下合併功能\n" \
             "2023/03/23：V1.3.5 複製取用、快速連結內容更新\n" \
             "2023/03/20：V1.3.4 批次處理頁籤內新增音訊合併功能，需依賴 ffmpeg.exe 及 ffprobe.exe\n" \
