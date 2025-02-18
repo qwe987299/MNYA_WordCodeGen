@@ -7,6 +7,7 @@
 
 ## 更新日誌
 
+2025/02/18：V1.3.9 批次處理頁籤內新增圖片中心處理功能<br>
 2023/03/28：V1.3.8 修正錯誤<br>
 2023/03/28：V1.3.7 批次處理頁籤內新增萌芽網頁浮水印功能<br>
 2023/03/25：V1.3.6 批次處理頁籤內新增圖片左右分割後上下合併功能<br>
@@ -70,7 +71,7 @@ start run.bat<br>
 
 # MIT License
 
-Copyright (c) 2023 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw
+Copyright (c) 2025 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
