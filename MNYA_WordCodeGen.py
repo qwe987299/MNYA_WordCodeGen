@@ -2,10 +2,10 @@ import tkinter as tk
 from tkinter import scrolledtext, filedialog, messagebox
 import tkinter.font as tkFont
 import ttkbootstrap as ttk
-from tktooltip import ToolTip
+from TkToolTip import ToolTip
 from ttkbootstrap.constants import *
 import pyperclip
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 import os
 import threading
 import json
@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.8"  # 版本
+VERSION = "V1.3.9"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -330,6 +330,19 @@ class App(tk.Frame):
         ToolTip(self.merge_audio_button, msg="全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)", delay=0.2,
                 fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
 
+        self.center_process_images_button = ttk.Button(
+            self.tab2,
+            text="【圖片中心處理】點我載入圖片並處理",
+            style="HANDLE.TButton",
+            command=self.process_center_images
+        )
+        self.center_process_images_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(
+            self.center_process_images_button,
+            msg="為每張圖片建立高斯模糊背景與白色陰影效果，\n並輸出固定尺寸圖片 (1024x768)\n(支援格式：.jpg、.jpeg、.png)",
+            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
+        )
+
     ## 批次處理：萌芽網頁浮水印 ##
 
     def watermark_process_images(self):
@@ -604,6 +617,82 @@ class App(tk.Frame):
         # 直接開啟輸出目錄
         os.startfile(BUILD_DIR)
 
+    ## 批次處理：圖片中心處理 ##
+
+    def process_center_images(self):
+        # 選擇圖片
+        image_paths = filedialog.askopenfilenames(
+            initialdir=os.getcwd(),
+            title="選擇圖片",
+            filetypes=[("Image files", "*.jpg *.png *.jpeg")]
+        )
+        if len(image_paths) == 0:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
+
+        # 目標背景尺寸
+        TARGET_WIDTH = 1024
+        TARGET_HEIGHT = 768
+
+        for image_path in image_paths:
+            filename = os.path.basename(image_path)
+            output_filename = os.path.splitext(filename)[0] + '.jpg'
+            output_path = os.path.join(BUILD_DIR, output_filename)
+            try:
+                # Step 1: 建立背景 (放大原圖並 20px 高斯模糊)
+                original_img = Image.open(image_path)
+                orig_w, orig_h = original_img.size
+                scale_w = TARGET_WIDTH / orig_w
+                scale_h = TARGET_HEIGHT / orig_h
+                scale_factor = max(scale_w, scale_h)
+                bg_w = int(orig_w * scale_factor)
+                bg_h = int(orig_h * scale_factor)
+                background = original_img.resize(
+                    (bg_w, bg_h), Image.Resampling.LANCZOS)
+                background = background.filter(ImageFilter.GaussianBlur(20))
+                final_bg = Image.new(
+                    'RGB', (TARGET_WIDTH, TARGET_HEIGHT), (0, 0, 0))
+                offset_x = (TARGET_WIDTH - bg_w) // 2
+                offset_y = (TARGET_HEIGHT - bg_h) // 2
+                final_bg.paste(background, (offset_x, offset_y))
+
+                # Step 2: 縮放原圖以完整顯示在 1024x768 並置中
+                scale_factor2 = min(scale_w, scale_h)
+                new_w = int(orig_w * scale_factor2)
+                new_h = int(orig_h * scale_factor2)
+                scaled_img = original_img.resize(
+                    (new_w, new_h), Image.Resampling.LANCZOS)
+                pos_x = (TARGET_WIDTH - new_w) // 2
+                pos_y = (TARGET_HEIGHT - new_h) // 2
+
+                # Step 3: 建立無偏移的白色陰影 (類似 CSS 的 box-shadow)
+                blur_radius = 5       # 陰影模糊半徑
+                shadow_opacity = 200  # 陰影透明度 (0~255)
+                shadow_w = new_w + 2 * blur_radius
+                shadow_h = new_h + 2 * blur_radius
+                shadow_img = Image.new(
+                    'RGBA', (shadow_w, shadow_h), (255, 255, 255, 0))
+                draw = ImageDraw.Draw(shadow_img)
+                draw.rectangle(
+                    [blur_radius, blur_radius, blur_radius +
+                        new_w, blur_radius + new_h],
+                    fill=(255, 255, 255, shadow_opacity)
+                )
+                shadow_img = shadow_img.filter(
+                    ImageFilter.GaussianBlur(blur_radius))
+                final_bg.paste(shadow_img, (pos_x - blur_radius,
+                               pos_y - blur_radius), shadow_img)
+
+                # Step 4: 將縮放後的原圖貼上去
+                final_bg.paste(scaled_img, (pos_x, pos_y))
+
+                # Step 5: 儲存成 JPG 格式
+                final_bg.save(output_path, format="JPEG", quality=90)
+            except Exception as e:
+                print(f"處理 {filename} 時發生錯誤: {e}")
+        # 開啟輸出目錄
+        os.startfile(BUILD_DIR)
+
     ###############
     ### 複製取用 ###
     ###############
@@ -746,6 +835,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/02/18：V1.3.9 批次處理頁籤內新增圖片中心處理功能\n" \
             "2023/03/28：V1.3.8 修正錯誤\n" \
             "2023/03/28：V1.3.7 批次處理頁籤內新增萌芽網頁浮水印功能\n" \
             "2023/03/25：V1.3.6 批次處理頁籤內新增圖片左右分割後上下合併功能\n" \
@@ -762,7 +852,7 @@ class App(tk.Frame):
             "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
             "2023/03/15：V1.0 初始版釋出\n" \
             "\n ■ MIT License ■ \n" \
-            "\nCopyright (c) 2023 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
+            "\nCopyright (c) 2025 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n" \
             "\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n" \
             "\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
