@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.3.9"  # 版本
+VERSION = "V1.4.0"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -72,6 +72,7 @@ class App(tk.Frame):
         self.master.title(APP_NAME + " " + VERSION)
         self.pack()
         self.create_widgets()
+        self.load_last_article()
         self.batch_widgets()
         self.copy_widgets()
         self.links_widgets()
@@ -179,8 +180,8 @@ class App(tk.Frame):
         site_frame = tk.Frame(self.tab1)
         site_frame.pack(side=tk.LEFT, padx=10, pady=5)
         for site, code in self.sites:
-            tk.Radiobutton(site_frame, text=site,
-                           variable=self.site_var, value=code, font=font14, indicatoron=False, width=15, height=1).pack(anchor=tk.W)
+            tk.Radiobutton(site_frame, text=site, variable=self.site_var, value=code, font=font14,
+                           indicatoron=False, width=15, height=1, command=self.load_last_article).pack(anchor=tk.W)
 
         include_frame = tk.Frame(site_frame)
         include_frame.pack(padx=1, pady=10)
@@ -281,6 +282,26 @@ class App(tk.Frame):
             else:
                 code += "\n"
             pyperclip.copy(code)
+
+        # 儲存當前網站的文章編號到配置檔案
+        try:
+            with open(self.config_path, "r") as f:
+                config = json.load(f)
+        except Exception:
+            config = {}
+        config["article_" + site_code] = article
+        with open(self.config_path, "w") as f:
+            json.dump(config, f)
+
+    def load_last_article(self):
+        try:
+            with open(self.config_path, "r") as f:
+                config = json.load(f)
+        except Exception:
+            config = {}
+        site_code = self.site_var.get()
+        last_article = config.get("article_" + site_code, "1")
+        self.article_var.set(last_article)
 
     ###############
     ### 批次處理 ###
@@ -835,6 +856,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/02/19：V1.4.0 增加自動記憶及讀取各網站上次填入之文章編號功能\n" \
             "2025/02/18：V1.3.9 批次處理頁籤內新增圖片中心處理功能\n" \
             "2023/03/28：V1.3.8 修正錯誤\n" \
             "2023/03/28：V1.3.7 批次處理頁籤內新增萌芽網頁浮水印功能\n" \
