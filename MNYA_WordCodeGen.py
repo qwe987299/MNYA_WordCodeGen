@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.4.0"  # 版本
+VERSION = "V1.4.1"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -208,17 +208,44 @@ class App(tk.Frame):
         self.image_num_var = tk.StringVar(value="10")
         self.image_width_var = tk.StringVar(value="1024")
         self.image_height_var = tk.StringVar(value="768")
+        # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
+        input_frame = tk.Frame(self.tab1)
+        input_frame.pack(side=tk.RIGHT, padx=10, pady=5)
+        self.year_var = tk.StringVar(value=str(datetime.datetime.now().year))
+        self.article_var = tk.StringVar(value="1")
+        self.image_num_var = tk.StringVar(value="10")
+        self.image_width_var = tk.StringVar(value="1024")
+        self.image_height_var = tk.StringVar(value="768")
+
         tk.Label(input_frame, text="年份：", font=font).pack()
-        tk.Entry(input_frame, textvariable=self.year_var, font=font).pack()
+        entry_year = tk.Entry(
+            input_frame, textvariable=self.year_var, font=font)
+        entry_year.pack()
+        self.bind_numeric_entry(entry_year, self.year_var)
+
         tk.Label(input_frame, text="文章編號：", font=font).pack()
-        tk.Entry(input_frame, textvariable=self.article_var, font=font).pack()
+        entry_article = tk.Entry(
+            input_frame, textvariable=self.article_var, font=font)
+        entry_article.pack()
+        self.bind_numeric_entry(entry_article, self.article_var)
+
         tk.Label(input_frame, text="文章圖片數：", font=font).pack()
-        tk.Entry(input_frame, textvariable=self.image_num_var, font=font).pack()
+        entry_image_num = tk.Entry(
+            input_frame, textvariable=self.image_num_var, font=font)
+        entry_image_num.pack()
+        self.bind_numeric_entry(entry_image_num, self.image_num_var)
+
         tk.Label(input_frame, text="圖片寬度：", font=font).pack()
-        tk.Entry(input_frame, textvariable=self.image_width_var, font=font).pack()
+        entry_image_width = tk.Entry(
+            input_frame, textvariable=self.image_width_var, font=font)
+        entry_image_width.pack()
+        self.bind_numeric_entry(entry_image_width, self.image_width_var)
+
         tk.Label(input_frame, text="圖片高度：", font=font).pack()
-        tk.Entry(input_frame, textvariable=self.image_height_var,
-                 font=font).pack()
+        entry_image_height = tk.Entry(
+            input_frame, textvariable=self.image_height_var, font=font)
+        entry_image_height.pack()
+        self.bind_numeric_entry(entry_image_height, self.image_height_var)
 
         space_frame = tk.Frame(input_frame)
         space_frame.pack(pady=2)
@@ -258,6 +285,18 @@ class App(tk.Frame):
                 self.include_symbol_down.set(False)
             else:
                 self.include_symbol_up.set(False)
+
+    # 數字增減輔助功能
+    def increment_value(self, var, delta):
+        try:
+            current = int(var.get())
+            var.set(str(current + delta))
+        except ValueError:
+            pass
+
+    def bind_numeric_entry(self, entry, var):
+        entry.bind("<Up>", lambda event: self.increment_value(var, 1))
+        entry.bind("<Down>", lambda event: self.increment_value(var, -1))
 
     def generate_code(self):
         site_code = self.site_var.get()
@@ -856,6 +895,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/02/21：V1.4.1 增加輸入欄位上下箭頭調整純數字數值功能\n" \
             "2025/02/19：V1.4.0 增加自動記憶及讀取各網站上次填入之文章編號功能\n" \
             "2025/02/18：V1.3.9 批次處理頁籤內新增圖片中心處理功能\n" \
             "2023/03/28：V1.3.8 修正錯誤\n" \
