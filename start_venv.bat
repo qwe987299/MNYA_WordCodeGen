@@ -14,7 +14,7 @@ python -m pip install --upgrade pip
 
 REM 安裝必要套件（若已安裝則會略過）
 echo Installing required packages...
-python -m pip install tkinter-tooltip ttkbootstrap tktooltip pyperclip pillow pywin32 gpxpy pyproj pydub
+python -m pip install pyinstaller tkinter-tooltip ttkbootstrap tktooltip pyperclip pillow pywin32 gpxpy pyproj pydub
 
 echo Running MNYA_WordCodeGen.py...
 python MNYA_WordCodeGen.py
