@@ -23,7 +23,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.4.1"  # 版本
+VERSION = "V1.4.2"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -200,14 +200,6 @@ class App(tk.Frame):
                        variable=self.include_symbol_down, font=font14,
                        command=lambda: self.update_checkbutton_state(self.include_symbol_down)).pack()
 
-        # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
-        input_frame = tk.Frame(self.tab1)
-        input_frame.pack(side=tk.RIGHT, padx=10, pady=5)
-        self.year_var = tk.StringVar(value=str(datetime.datetime.now().year))
-        self.article_var = tk.StringVar(value="1")
-        self.image_num_var = tk.StringVar(value="10")
-        self.image_width_var = tk.StringVar(value="1024")
-        self.image_height_var = tk.StringVar(value="768")
         # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
         input_frame = tk.Frame(self.tab1)
         input_frame.pack(side=tk.RIGHT, padx=10, pady=5)
@@ -895,6 +887,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/02/21：V1.4.2 程式碼 BUG 修復\n" \
             "2025/02/21：V1.4.1 增加輸入欄位上下箭頭調整純數字數值功能\n" \
             "2025/02/19：V1.4.0 增加自動記憶及讀取各網站上次填入之文章編號功能\n" \
             "2025/02/18：V1.3.9 批次處理頁籤內新增圖片中心處理功能\n" \
