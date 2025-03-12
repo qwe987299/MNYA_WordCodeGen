@@ -15,6 +15,8 @@ import webbrowser
 import gpxpy
 import pyproj
 import pydub
+import cv2
+import numpy as np
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -23,7 +25,7 @@ import pydub
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.4.2"  # 版本
+VERSION = "V1.4.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -395,6 +397,19 @@ class App(tk.Frame):
             delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
         )
 
+        self.webp_to_mp4_button = ttk.Button(
+            self.tab2,
+            text="【WEBP 轉 MP4】點我載入 WEBP 並處理",
+            style="HANDLE.TButton",
+            command=self.convert_webp_to_mp4
+        )
+        self.webp_to_mp4_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(
+            self.webp_to_mp4_button,
+            msg="批次處理 WEBP 轉 MP4，輸出格式為 .mp4\n(支援格式：.webp)",
+            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
+        )
+
     ## 批次處理：萌芽網頁浮水印 ##
 
     def watermark_process_images(self):
@@ -745,6 +760,59 @@ class App(tk.Frame):
         # 開啟輸出目錄
         os.startfile(BUILD_DIR)
 
+    ## 批次處理：圖片中心處理 ##
+
+    def convert_webp_to_mp4(self):
+        # 讓使用者選擇 WEBP 檔案
+        webp_files = filedialog.askopenfilenames(
+            title="選擇 WEBP 檔案",
+            filetypes=[("WEBP 檔案", "*.webp")]
+        )
+        if not webp_files:
+            messagebox.showinfo("提示", "未選擇任何 WEBP 檔案，此次處理結束")
+            return
+
+        for webp_path in webp_files:
+            try:
+                im = Image.open(webp_path)
+            except Exception as e:
+                print(f"無法開啟 {os.path.basename(webp_path)}：{e}")
+                continue
+
+            frames = []
+            durations = []
+            try:
+                while True:
+                    frame = im.copy().convert("RGB")
+                    frames.append(np.array(frame))
+                    durations.append(im.info.get("duration", 100))
+                    im.seek(im.tell() + 1)
+            except EOFError:
+                pass  # 幀讀取結束
+
+            if len(frames) == 0:
+                print(f"{os.path.basename(webp_path)} 中沒有讀取到任何幀")
+                continue
+
+            # 以第一個幀的 duration 計算 fps
+            fps = 1000.0 / durations[0]
+            height, width, _ = frames[0].shape
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            output_filename = os.path.splitext(
+                os.path.basename(webp_path))[0] + ".mp4"
+            output_path = os.path.join(BUILD_DIR, output_filename)
+            video_writer = cv2.VideoWriter(
+                output_path, fourcc, fps, (width, height))
+
+            for frame in frames:
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                video_writer.write(frame_bgr)
+
+            video_writer.release()
+
+        # 處理完畢後開啟 build 目錄
+        os.startfile(BUILD_DIR)
+
     ###############
     ### 複製取用 ###
     ###############
@@ -887,6 +955,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/03/12：V1.4.3 批次處理頁籤內新增 WEBP 轉 MP4 功能\n" \
             "2025/02/21：V1.4.2 程式碼 BUG 修復\n" \
             "2025/02/21：V1.4.1 增加輸入欄位上下箭頭調整純數字數值功能\n" \
             "2025/02/19：V1.4.0 增加自動記憶及讀取各網站上次填入之文章編號功能\n" \
