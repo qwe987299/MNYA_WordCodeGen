@@ -26,7 +26,7 @@ import ffmpeg
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.4.4"  # 版本
+VERSION = "V1.4.5"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -487,7 +487,7 @@ class App(tk.Frame):
             # 定義輸出路徑
             output_path = os.path.join(BUILD_DIR, os.path.basename(video_path))
 
-            # 取得影片解析度
+            # 取得影片資訊
             probe = ffmpeg.probe(video_path)
             video_stream = next(
                 (stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
@@ -498,24 +498,35 @@ class App(tk.Frame):
                 print(f"無法取得影片解析度: {video_path}")
                 continue
 
-            # 設定浮水印寬度為 15% 的影片寬度，高度等比例縮放
+            # 設定浮水印寬度為 15% 的影片寬度
             watermark_width = int(video_width * 0.15)
 
-            # 載入影片與浮水印圖片（請確認 watermark-vertical.png 位於正確路徑下）
+            # 載入影片與浮水印圖片
             video_input = ffmpeg.input(video_path)
             watermark_input = ffmpeg.input("watermark-vertical.png")
-
-            # 調整浮水印尺寸，-1 表示高度自動等比例縮放
             watermark_input = watermark_input.filter(
                 'scale', watermark_width, -1)
 
-            # 合併影片與浮水印，將浮水印置於右上角，位置設定為 (W - w - 1, 10)
-            out = (
-                ffmpeg
-                .filter([video_input, watermark_input], 'overlay', 'W-w-1', '10')
-                .output(output_path, vcodec="libx264", preset="medium", crf=23, pix_fmt="yuv420p")
-                .overwrite_output()
-            )
+            # 進行影像覆蓋
+            video_overlay = ffmpeg.filter(
+                [video_input, watermark_input], 'overlay', 'W-w-1', '10')
+
+            # 判斷是否有音軌
+            audio_stream = next(
+                (stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
+            if audio_stream:
+                audio = video_input.audio
+                out = (
+                    ffmpeg
+                    .output(video_overlay, audio, output_path, vcodec="libx264", acodec="copy", preset="medium", crf=23, pix_fmt="yuv420p")
+                    .overwrite_output()
+                )
+            else:
+                out = (
+                    ffmpeg
+                    .output(video_overlay, output_path, vcodec="libx264", preset="medium", crf=23, pix_fmt="yuv420p")
+                    .overwrite_output()
+                )
             out.run()
 
             pass
@@ -1022,6 +1033,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/03/12：V1.4.5 影片萌芽浮水印功能 BUG 修復\n" \
             "2025/03/12：V1.4.4 批次處理頁籤內新增影片萌芽浮水印功能\n" \
             "2025/03/12：V1.4.3 批次處理頁籤內新增 WEBP 轉 MP4 功能\n" \
             "2025/02/21：V1.4.2 程式碼 BUG 修復\n" \
