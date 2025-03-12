@@ -17,6 +17,7 @@ import pyproj
 import pydub
 import cv2
 import numpy as np
+import ffmpeg
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -25,7 +26,7 @@ import numpy as np
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.4.3"  # 版本
+VERSION = "V1.4.4"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -349,10 +350,23 @@ class App(tk.Frame):
                   background=[('pressed', '#A0522D'), ('active', '#8B4513')])
 
         self.watermark_process_images_button = ttk.Button(
-            self.tab2, text="【萌芽網頁浮水印】點我載入圖片並處理", style="HANDLE.TButton", command=self.watermark_process_images)
+            self.tab2, text="【圖片萌芽浮水印】點我載入圖片並處理", style="HANDLE.TButton", command=self.watermark_process_images)
         self.watermark_process_images_button.pack(fill='both', padx=2, pady=2)
         ToolTip(self.watermark_process_images_button, msg="為每張圖片上萌芽網頁浮水印，\n位置會在圖片的右下角，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)",
                 delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+
+        self.video_watermark_button = ttk.Button(
+            self.tab2,
+            text="【影片萌芽浮水印】點我載入影片並處理",
+            style="HANDLE.TButton",
+            command=self.video_watermark
+        )
+        self.video_watermark_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(
+            self.video_watermark_button,
+            msg="為任何 MP4 影片加上萌芽網頁浮水印，\n採直式浮水印，會顯示在影片右上方\n(支援格式：.mp4)",
+            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
+        )
 
         self.image_per2_merge_button = ttk.Button(
             self.tab2, text="【圖片倆倆合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.load_images)
@@ -410,7 +424,7 @@ class App(tk.Frame):
             delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
         )
 
-    ## 批次處理：萌芽網頁浮水印 ##
+    ## 批次處理：圖片萌芽浮水印 ##
 
     def watermark_process_images(self):
         # 要求使用者選擇圖片
@@ -451,11 +465,63 @@ class App(tk.Frame):
             # 儲存新圖片
             filename = os.path.basename(image_path)
             output_path = os.path.join(
-                "build", os.path.splitext(filename)[0] + ".jpg")
+                BUILD_DIR, os.path.splitext(filename)[0] + ".jpg")
             new_image.convert("RGB").save(output_path)
 
         # 用檔案總管打開 build 目錄
-        os.startfile("build")
+        os.startfile(BUILD_DIR)
+
+        ## 批次處理：影片萌芽浮水印 ##
+
+    def video_watermark(self):
+        video_paths = filedialog.askopenfilenames(
+            initialdir=os.getcwd(),
+            title="選擇影片",
+            filetypes=[("MP4 影片", "*.mp4")]
+        )
+        if not video_paths:
+            messagebox.showinfo("提示", "未選擇任何影片，此次處理結束")
+            return
+
+        for video_path in video_paths:
+            # 定義輸出路徑
+            output_path = os.path.join(BUILD_DIR, os.path.basename(video_path))
+
+            # 取得影片解析度
+            probe = ffmpeg.probe(video_path)
+            video_stream = next(
+                (stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+            if video_stream:
+                video_width = int(video_stream['width'])
+                video_height = int(video_stream['height'])
+            else:
+                print(f"無法取得影片解析度: {video_path}")
+                continue
+
+            # 設定浮水印寬度為 15% 的影片寬度，高度等比例縮放
+            watermark_width = int(video_width * 0.15)
+
+            # 載入影片與浮水印圖片（請確認 watermark-vertical.png 位於正確路徑下）
+            video_input = ffmpeg.input(video_path)
+            watermark_input = ffmpeg.input("watermark-vertical.png")
+
+            # 調整浮水印尺寸，-1 表示高度自動等比例縮放
+            watermark_input = watermark_input.filter(
+                'scale', watermark_width, -1)
+
+            # 合併影片與浮水印，將浮水印置於右上角，位置設定為 (W - w - 1, 10)
+            out = (
+                ffmpeg
+                .filter([video_input, watermark_input], 'overlay', 'W-w-1', '10')
+                .output(output_path, vcodec="libx264", preset="medium", crf=23, pix_fmt="yuv420p")
+                .overwrite_output()
+            )
+            out.run()
+
+            pass
+
+        # 用檔案總管打開 build 目錄
+        os.startfile(BUILD_DIR)
 
     ## 批次處理：圖片倆倆合併 ##
 
@@ -536,8 +602,8 @@ class App(tk.Frame):
         for file_path in file_paths:
             self.split_and_merge_image(file_path)
 
-        # 完成後打開 build 目錄
-        os.startfile('build')
+        # 用檔案總管打開 build 目錄
+        os.startfile(BUILD_DIR)
 
     ## 批次處理：字幕檔轉時間軸標記 ##
 
@@ -580,7 +646,7 @@ class App(tk.Frame):
                 print(f'======== {output_filename} ========')
                 print(output_text)
 
-        # 直接開啟輸出目錄
+        # 用檔案總管打開 build 目錄
         os.startfile(BUILD_DIR)
 
     ## 批次處理：航跡檔轉航點座標 ##
@@ -650,12 +716,12 @@ class App(tk.Frame):
                     \n\n")
 
             # 將結果輸出到 .txt 檔案
-            output_file_path = os.path.join("build", os.path.splitext(
+            output_file_path = os.path.join(BUILD_DIR, os.path.splitext(
                 os.path.basename(file_path))[0] + ".txt")
             with open(output_file_path, "w", encoding="utf-8") as output_file:
                 output_file.writelines(wpt_info)
 
-        # 直接開啟輸出目錄
+        # 用檔案總管打開 build 目錄
         os.startfile(BUILD_DIR)
 
     ## 批次處理：音訊合併 ##
@@ -681,7 +747,7 @@ class App(tk.Frame):
         # 顯示訊息視窗
         tk.messagebox.showinfo("提示", f"音訊檔案已合併，並儲存至 {output_file}")
 
-        # 直接開啟輸出目錄
+        # 用檔案總管打開 build 目錄
         os.startfile(BUILD_DIR)
 
     ## 批次處理：圖片中心處理 ##
@@ -757,10 +823,11 @@ class App(tk.Frame):
                 final_bg.save(output_path, format="JPEG", quality=90)
             except Exception as e:
                 print(f"處理 {filename} 時發生錯誤: {e}")
-        # 開啟輸出目錄
+
+        # 用檔案總管打開 build 目錄
         os.startfile(BUILD_DIR)
 
-    ## 批次處理：圖片中心處理 ##
+    ## 批次處理：WEBP 轉 MP4 ##
 
     def convert_webp_to_mp4(self):
         # 讓使用者選擇 WEBP 檔案
@@ -810,7 +877,7 @@ class App(tk.Frame):
 
             video_writer.release()
 
-        # 處理完畢後開啟 build 目錄
+        # 用檔案總管打開 build 目錄
         os.startfile(BUILD_DIR)
 
     ###############
@@ -955,6 +1022,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/03/12：V1.4.4 批次處理頁籤內新增影片萌芽浮水印功能\n" \
             "2025/03/12：V1.4.3 批次處理頁籤內新增 WEBP 轉 MP4 功能\n" \
             "2025/02/21：V1.4.2 程式碼 BUG 修復\n" \
             "2025/02/21：V1.4.1 增加輸入欄位上下箭頭調整純數字數值功能\n" \
