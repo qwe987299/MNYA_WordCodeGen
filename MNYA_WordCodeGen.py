@@ -5,19 +5,18 @@ import ttkbootstrap as ttk
 from TkToolTip import ToolTip
 from ttkbootstrap.constants import *
 import pyperclip
-from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 import os
-import threading
 import json
 import win32api
-import re
 import webbrowser
-import gpxpy
-import pyproj
-import pydub
-import cv2
-import numpy as np
-import ffmpeg
+
+# 匯入 batch_tools 各模組
+from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images
+from batch_tools.video_tools import add_video_watermark
+from batch_tools.audio_tools import merge_audio
+from batch_tools.gpx_tools import convert_gpx_files
+from batch_tools.subtitle_tools import sub2txt
+from batch_tools.webp_tools import webp_to_mp4
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -26,7 +25,7 @@ import ffmpeg
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.4.5"  # 版本
+VERSION = "V1.5.0"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -427,51 +426,19 @@ class App(tk.Frame):
     ## 批次處理：圖片萌芽浮水印 ##
 
     def watermark_process_images(self):
-        # 要求使用者選擇圖片
-        self.image_paths = filedialog.askopenfilenames(initialdir=os.getcwd(
-        ), title="選擇圖片", filetypes=[("Image files", "*.jpg *.png *.jpeg")])
-        if len(self.image_paths) == 0:
+        image_paths = filedialog.askopenfilenames(
+            initialdir=os.getcwd(),
+            title="選擇圖片",
+            filetypes=[("Image files", "*.jpg *.png *.jpeg")]
+        )
+        if not image_paths:
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
-
-        # 載入浮水印圖片
-        watermark = Image.open("watermark.png").convert("RGBA")
-        watermark_alpha = watermark.split()[-1]
-        watermark_alpha = ImageEnhance.Brightness(watermark_alpha).enhance(0.7)
-        watermark.putalpha(watermark_alpha)
-
-        # 處理每張圖片
-        for image_path in self.image_paths:
-            # 載入圖片
-            image = Image.open(image_path)
-
-            # 如有必要，調整圖片大小以適應浮水印
-            if image.size[0] < 100 or image.size[1] < 50:
-                ratio = max(100 / image.size[0], 50 / image.size[1])
-                new_size = (int(image.size[0] * ratio),
-                            int(image.size[1] * ratio))
-                image = image.resize(new_size)
-
-            # 建立新圖片並加上浮水印
-            new_image = Image.new("RGBA", image.size, (0, 0, 0, 0))
-            new_image.paste(image, (0, 0))
-
-            # 加上浮水印
-            watermark_size = watermark.size
-            watermark_position = (
-                image.size[0] - watermark_size[0] - 3, image.size[1] - watermark_size[1] - 1)
-            new_image.alpha_composite(watermark, watermark_position)
-
-            # 儲存新圖片
-            filename = os.path.basename(image_path)
-            output_path = os.path.join(
-                BUILD_DIR, os.path.splitext(filename)[0] + ".jpg")
-            new_image.convert("RGB").save(output_path)
-
-        # 用檔案總管打開 build 目錄
+        add_watermark(image_paths, "watermark.png",
+                      BUILD_DIR)
         os.startfile(BUILD_DIR)
 
-        ## 批次處理：影片萌芽浮水印 ##
+    ## 批次處理：影片萌芽浮水印 ##
 
     def video_watermark(self):
         video_paths = filedialog.askopenfilenames(
@@ -482,366 +449,90 @@ class App(tk.Frame):
         if not video_paths:
             messagebox.showinfo("提示", "未選擇任何影片，此次處理結束")
             return
-
-        for video_path in video_paths:
-            # 定義輸出路徑
-            output_path = os.path.join(BUILD_DIR, os.path.basename(video_path))
-
-            # 取得影片資訊
-            probe = ffmpeg.probe(video_path)
-            video_stream = next(
-                (stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
-            if video_stream:
-                video_width = int(video_stream['width'])
-                video_height = int(video_stream['height'])
-            else:
-                print(f"無法取得影片解析度: {video_path}")
-                continue
-
-            # 設定浮水印寬度為 15% 的影片寬度
-            watermark_width = int(video_width * 0.15)
-
-            # 載入影片與浮水印圖片
-            video_input = ffmpeg.input(video_path)
-            watermark_input = ffmpeg.input("watermark-vertical.png")
-            watermark_input = watermark_input.filter(
-                'scale', watermark_width, -1)
-
-            # 進行影像覆蓋
-            video_overlay = ffmpeg.filter(
-                [video_input, watermark_input], 'overlay', 'W-w-1', '10')
-
-            # 判斷是否有音軌
-            audio_stream = next(
-                (stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
-            if audio_stream:
-                audio = video_input.audio
-                out = (
-                    ffmpeg
-                    .output(video_overlay, audio, output_path, vcodec="libx264", acodec="copy", preset="medium", crf=23, pix_fmt="yuv420p")
-                    .overwrite_output()
-                )
-            else:
-                out = (
-                    ffmpeg
-                    .output(video_overlay, output_path, vcodec="libx264", preset="medium", crf=23, pix_fmt="yuv420p")
-                    .overwrite_output()
-                )
-            out.run()
-
-            pass
-
-        # 用檔案總管打開 build 目錄
+        add_video_watermark(video_paths, "watermark-vertical.png", BUILD_DIR)
         os.startfile(BUILD_DIR)
 
     ## 批次處理：圖片倆倆合併 ##
 
     def load_images(self):
-        self.images = filedialog.askopenfilenames(initialdir=os.getcwd(
-        ), title="選擇圖片", filetypes=[("Image files", "*.jpg *.png *.jpeg")])
-        if len(self.images) == 0:
-            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
-            return
-        self.merge_images()
-
-    def merge_images(self):
-        self.image_per2_merge_button.configure(state='disabled')
-        threading.Thread(target=self.merge_thread).start()
-
-    def merge_thread(self):
-        # 如果圖片總數為單數，最後一張不合併
-        if len(self.images) % 2 == 1:
-            self.images = self.images[:-1]
-
-        # 每兩張圖片合併
-        for i in range(0, len(self.images), 2):
-            image1 = Image.open(self.images[i])
-            image2 = Image.open(self.images[i+1])
-            width = image1.width + image2.width
-            height = image1.height
-            new_image = Image.new('RGB', (width, height))
-            new_image.paste(image1, (0, 0))
-            new_image.paste(image2, (image1.width, 0))
-            output_path = os.path.join(BUILD_DIR, f'merge_{i//2}.jpg')
-            new_image.save(output_path)
-
-        # 使用檔案總管打開 build 目錄
-        os.startfile(BUILD_DIR)
-
-        self.image_per2_merge_button.configure(state='normal')
-
-    ## 批次處理：圖片左右分割後上下合併 ##
-
-    def split_and_merge_image(self, file_path):
-        # 開啟圖片
-        image = Image.open(file_path)
-
-        # 取得圖片大小
-        width, height = image.size
-
-        # 左右分割
-        left = image.crop((0, 0, width/2, height))
-        right = image.crop((width/2, 0, width, height))
-
-        # 計算新圖片大小
-        new_width = width/2
-        new_height = height * 2
-
-        # 創建新圖片
-        new_image = Image.new(
-            'RGB', (int(new_width), int(new_height)), (255, 255, 255))
-
-        # 將左右兩半部分合併到新圖片
-        new_image.paste(left, (0, 0))
-        new_image.paste(right, (0, height))
-
-        # 輸出圖片至 build 目錄
-        output_path = os.path.join('build', os.path.splitext(
-            os.path.basename(file_path))[0] + '.jpg')
-        new_image.save(output_path)
-
-    def process_split_and_merge_image(self):
-        # 選擇多張圖片
-        file_paths = filedialog.askopenfilenames(
-            title='選擇圖片', filetypes=[("Image files", "*.jpg *.png *.jpeg")]
-        )
-        if len(file_paths) == 0:
-            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
-            return
-
-        # 依次處理每個圖片
-        for file_path in file_paths:
-            self.split_and_merge_image(file_path)
-
-        # 用檔案總管打開 build 目錄
-        os.startfile(BUILD_DIR)
-
-    ## 批次處理：字幕檔轉時間軸標記 ##
-
-    def sub2txt(self):
-        self.files = filedialog.askopenfilenames()
-        if len(self.files) == 0:
-            messagebox.showinfo("提示", "未選擇任何字幕檔，此次處理結束")
-            return
-
-        for file_path in self.files:
-            filename = os.path.basename(file_path)
-
-            # 讀取檔案
-            with open(file_path, 'r', encoding='utf-16 le') as f:
-                text = f.read()
-
-            # 使用正規表達式進行批次尋找取代的動作
-            text = re.sub(r'\s\n[0-9][0-9][0-9]', '', text)
-            text = re.sub(r'\s\n[0-9][0-9]', '', text)
-            text = re.sub(r'\s\n[0-9]', '', text)
-            text = re.sub(r',[0-9][0-9][0-9] --> .*\n', ' ', text)
-            text = re.sub(r',[0-9][0-9] --> .*\n', ' ', text)
-            text = re.sub(r',[0-9] --> .*\n', ' ', text)
-
-            # 刪除第一行
-            text = text.split('\n', 1)[1]
-
-            # 新增第一行
-            text = '00:00:00 片頭\n' + text
-
-            # 將結果寫入新檔案
-            output_filename = os.path.splitext(filename)[0] + '.txt'
-            output_path = os.path.join(BUILD_DIR, output_filename)
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(text)
-
-            # 將結果輸出到終端機
-            with open(output_path, 'r', encoding='utf-8') as f:
-                output_text = f.read()
-                print(f'======== {output_filename} ========')
-                print(output_text)
-
-        # 用檔案總管打開 build 目錄
-        os.startfile(BUILD_DIR)
-
-    ## 批次處理：航跡檔轉航點座標 ##
-
-    def convert_coordinate(self, org, to, lon, lat, is_int):
-        # 座標轉換
-        transformer = pyproj.Transformer.from_crs(org, to, always_xy=True)
-        lon, lat = transformer.transform(lon, lat)
-        if is_int:
-            return int(lon), int(lat)
-        else:
-            return lon, lat
-
-    def convert_gpx_files(self):
-        # 定義投影坐標系
-        twd67_longlat = pyproj.CRS(
-            "+proj=longlat +ellps=aust_SA +towgs84=-752,-358,-179,-.0000011698,.0000018398,.0000009822,.00002329 +no_defs"
-        )  # TWD67 經緯度
-        twd67_tm2 = pyproj.CRS(
-            "+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 "
-            "+ellps=aust_SA +towgs84=-752,-358,-179,-0.0000011698,0.0000018398,0.0000009822,0.00002329 +units=m +no_defs"
-        )  # TWD67 二度分帶
-        twd97_longlat = pyproj.CRS(
-            "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
-        )  # TWD97(WGS84) 經緯度
-        twd97_tm2 = pyproj.CRS(
-            "+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +units=m +no_defs"
-        )  # TWD97 二度分帶
-
-        # 開啟檔案選擇對話框，讓使用者選擇要載入的檔案
-        file_paths = tk.filedialog.askopenfilenames(
-            title="選擇 GPX 檔案",
-            filetypes=[("GPX files", "*.gpx")])
-
-        # 如果沒有選擇任何檔案，顯示提示訊息
-        if not file_paths:
-            messagebox.showinfo("提示", "未選擇任何航跡檔，此次處理結束")
-            return
-
-        # 讀取每個檔案，提取所需資訊，並輸出到 .txt 檔案
-        for file_path in file_paths:
-            # 讀取 .gpx 檔案
-            with open(file_path, "r", encoding="utf-8") as gpx_file:
-                gpx = gpxpy.parse(gpx_file)
-
-            # 提取所需資訊
-            wpt_info = []
-            for wpt in gpx.waypoints:
-                name = wpt.name
-                lon = wpt.longitude
-                lat = wpt.latitude
-                lon_twd67_longlat, lat_twd67_longlat = self.convert_coordinate(
-                    twd97_longlat, twd67_longlat, lon, lat, False)
-                lon_twd67_tm2_T, lat_twd67_tm2_T = self.convert_coordinate(
-                    twd97_longlat, twd67_tm2, lon, lat, True)
-                lon_twd67_tm2_F, lat_twd67_tm2_F = self.convert_coordinate(
-                    twd97_longlat, twd67_tm2, lon, lat, False)
-                lon_twd97_tm2_T, lat_twd97_tm2_T = self.convert_coordinate(
-                    twd97_longlat, twd97_tm2, lon, lat, True)
-                lon_twd97_tm2_F, lat_twd97_tm2_F = self.convert_coordinate(
-                    twd97_longlat, twd97_tm2, lon, lat, False)
-                wpt_info.append(
-                    f"{name}\n▶️ TWD67 經緯度座標值: {lon_twd67_longlat}, {lat_twd67_longlat} \
-                    \n▶️ TWD67 二度分帶座標值: {lon_twd67_tm2_T}, {lat_twd67_tm2_T} ({lon_twd67_tm2_F}, {lat_twd67_tm2_F}) \
-                    \n▶️ TWD97(WGS84) 經緯度座標值: {wpt.longitude}, {wpt.latitude} \
-                    \n▶️ TWD97 二度分帶座標值: {lon_twd97_tm2_T}, {lat_twd97_tm2_T} ({lon_twd97_tm2_F}, {lat_twd97_tm2_F}) \
-                    \n\n")
-
-            # 將結果輸出到 .txt 檔案
-            output_file_path = os.path.join(BUILD_DIR, os.path.splitext(
-                os.path.basename(file_path))[0] + ".txt")
-            with open(output_file_path, "w", encoding="utf-8") as output_file:
-                output_file.writelines(wpt_info)
-
-        # 用檔案總管打開 build 目錄
-        os.startfile(BUILD_DIR)
-
-    ## 批次處理：音訊合併 ##
-
-    def merge_audio(self):
-        # 選擇多個音訊檔案
-        files = filedialog.askopenfilenames(
-            filetypes=[("音訊檔案", "*.mp3;*.wav")])
-        if len(files) < 2:
-            messagebox.showinfo("提示", "未選擇兩個（含）以上的音訊檔，此次處理結束")
-            return
-        # 載入音訊檔案
-        audio_files = [pydub.AudioSegment.from_file(
-            file) for file in files]
-        # 合併音訊檔案
-        combined_audio = pydub.AudioSegment.empty()
-        for audio in audio_files:
-            combined_audio += audio
-        # 輸出合併後的音訊檔案
-        output_file = os.path.join(BUILD_DIR, os.path.splitext(
-            os.path.basename(files[0]))[0] + "_merge.mp3")
-        combined_audio.export(output_file, format="mp3", bitrate="320k")
-        # 顯示訊息視窗
-        tk.messagebox.showinfo("提示", f"音訊檔案已合併，並儲存至 {output_file}")
-
-        # 用檔案總管打開 build 目錄
-        os.startfile(BUILD_DIR)
-
-    ## 批次處理：圖片中心處理 ##
-
-    def process_center_images(self):
-        # 選擇圖片
         image_paths = filedialog.askopenfilenames(
             initialdir=os.getcwd(),
             title="選擇圖片",
             filetypes=[("Image files", "*.jpg *.png *.jpeg")]
         )
-        if len(image_paths) == 0:
+        if not image_paths:
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
+        merge_images(image_paths, BUILD_DIR)
+        os.startfile(BUILD_DIR)
 
-        # 目標背景尺寸
-        TARGET_WIDTH = 1024
-        TARGET_HEIGHT = 768
+    ## 批次處理：圖片左右分割後上下合併 ##
 
-        for image_path in image_paths:
-            filename = os.path.basename(image_path)
-            output_filename = os.path.splitext(filename)[0] + '.jpg'
-            output_path = os.path.join(BUILD_DIR, output_filename)
-            try:
-                # Step 1: 建立背景 (放大原圖並 20px 高斯模糊)
-                original_img = Image.open(image_path)
-                orig_w, orig_h = original_img.size
-                scale_w = TARGET_WIDTH / orig_w
-                scale_h = TARGET_HEIGHT / orig_h
-                scale_factor = max(scale_w, scale_h)
-                bg_w = int(orig_w * scale_factor)
-                bg_h = int(orig_h * scale_factor)
-                background = original_img.resize(
-                    (bg_w, bg_h), Image.Resampling.LANCZOS)
-                background = background.filter(ImageFilter.GaussianBlur(20))
-                final_bg = Image.new(
-                    'RGB', (TARGET_WIDTH, TARGET_HEIGHT), (0, 0, 0))
-                offset_x = (TARGET_WIDTH - bg_w) // 2
-                offset_y = (TARGET_HEIGHT - bg_h) // 2
-                final_bg.paste(background, (offset_x, offset_y))
+    def process_split_and_merge_image(self):
+        file_paths = filedialog.askopenfilenames(
+            title='選擇圖片', filetypes=[("Image files", "*.jpg *.png *.jpeg")]
+        )
+        if not file_paths:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
+        for fp in file_paths:
+            split_and_merge_image(fp, BUILD_DIR)
+        os.startfile(BUILD_DIR)
 
-                # Step 2: 縮放原圖以完整顯示在 1024x768 並置中
-                scale_factor2 = min(scale_w, scale_h)
-                new_w = int(orig_w * scale_factor2)
-                new_h = int(orig_h * scale_factor2)
-                scaled_img = original_img.resize(
-                    (new_w, new_h), Image.Resampling.LANCZOS)
-                pos_x = (TARGET_WIDTH - new_w) // 2
-                pos_y = (TARGET_HEIGHT - new_h) // 2
+    ## 批次處理：字幕檔轉時間軸標記 ##
 
-                # Step 3: 建立無偏移的白色陰影 (類似 CSS 的 box-shadow)
-                blur_radius = 5       # 陰影模糊半徑
-                shadow_opacity = 200  # 陰影透明度 (0~255)
-                shadow_w = new_w + 2 * blur_radius
-                shadow_h = new_h + 2 * blur_radius
-                shadow_img = Image.new(
-                    'RGBA', (shadow_w, shadow_h), (255, 255, 255, 0))
-                draw = ImageDraw.Draw(shadow_img)
-                draw.rectangle(
-                    [blur_radius, blur_radius, blur_radius +
-                        new_w, blur_radius + new_h],
-                    fill=(255, 255, 255, shadow_opacity)
-                )
-                shadow_img = shadow_img.filter(
-                    ImageFilter.GaussianBlur(blur_radius))
-                final_bg.paste(shadow_img, (pos_x - blur_radius,
-                               pos_y - blur_radius), shadow_img)
+    def sub2txt(self):
+        files = filedialog.askopenfilenames(filetypes=[("SRT 字幕檔", "*.srt")])
+        if not files:
+            messagebox.showinfo("提示", "未選擇任何字幕檔，此次處理結束")
+            return
+        sub2txt(files, BUILD_DIR)
+        os.startfile(BUILD_DIR)
 
-                # Step 4: 將縮放後的原圖貼上去
-                final_bg.paste(scaled_img, (pos_x, pos_y))
+    ## 批次處理：航跡檔轉航點座標 ##
 
-                # Step 5: 儲存成 JPG 格式
-                final_bg.save(output_path, format="JPEG", quality=90)
-            except Exception as e:
-                print(f"處理 {filename} 時發生錯誤: {e}")
+    def convert_gpx_files(self):
+        file_paths = filedialog.askopenfilenames(
+            title="選擇 GPX 檔案",
+            filetypes=[("GPX files", "*.gpx")]
+        )
+        if not file_paths:
+            messagebox.showinfo("提示", "未選擇任何航跡檔，此次處理結束")
+            return
+        convert_gpx_files(file_paths, BUILD_DIR)
+        os.startfile(BUILD_DIR)
 
-        # 用檔案總管打開 build 目錄
+    ## 批次處理：音訊合併 ##
+
+    def merge_audio(self):
+        files = filedialog.askopenfilenames(
+            filetypes=[("音訊檔案", "*.mp3;*.wav")]
+        )
+        if len(files) < 2:
+            messagebox.showinfo("提示", "未選擇兩個（含）以上的音訊檔，此次處理結束")
+            return
+        output_file = merge_audio(files, BUILD_DIR)
+        if output_file:
+            messagebox.showinfo("提示", f"音訊檔案已合併，並儲存至 {output_file}")
+            os.startfile(BUILD_DIR)
+
+    ## 批次處理：圖片中心處理 ##
+
+    def process_center_images(self):
+        image_paths = filedialog.askopenfilenames(
+            initialdir=os.getcwd(),
+            title="選擇圖片",
+            filetypes=[("Image files", "*.jpg *.png *.jpeg")]
+        )
+        if not image_paths:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
+        center_process_images(image_paths, BUILD_DIR)
         os.startfile(BUILD_DIR)
 
     ## 批次處理：WEBP 轉 MP4 ##
 
     def convert_webp_to_mp4(self):
-        # 讓使用者選擇 WEBP 檔案
         webp_files = filedialog.askopenfilenames(
             title="選擇 WEBP 檔案",
             filetypes=[("WEBP 檔案", "*.webp")]
@@ -849,46 +540,7 @@ class App(tk.Frame):
         if not webp_files:
             messagebox.showinfo("提示", "未選擇任何 WEBP 檔案，此次處理結束")
             return
-
-        for webp_path in webp_files:
-            try:
-                im = Image.open(webp_path)
-            except Exception as e:
-                print(f"無法開啟 {os.path.basename(webp_path)}：{e}")
-                continue
-
-            frames = []
-            durations = []
-            try:
-                while True:
-                    frame = im.copy().convert("RGB")
-                    frames.append(np.array(frame))
-                    durations.append(im.info.get("duration", 100))
-                    im.seek(im.tell() + 1)
-            except EOFError:
-                pass  # 幀讀取結束
-
-            if len(frames) == 0:
-                print(f"{os.path.basename(webp_path)} 中沒有讀取到任何幀")
-                continue
-
-            # 以第一個幀的 duration 計算 fps
-            fps = 1000.0 / durations[0]
-            height, width, _ = frames[0].shape
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            output_filename = os.path.splitext(
-                os.path.basename(webp_path))[0] + ".mp4"
-            output_path = os.path.join(BUILD_DIR, output_filename)
-            video_writer = cv2.VideoWriter(
-                output_path, fourcc, fps, (width, height))
-
-            for frame in frames:
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                video_writer.write(frame_bgr)
-
-            video_writer.release()
-
-        # 用檔案總管打開 build 目錄
+        webp_to_mp4(webp_files, BUILD_DIR)
         os.startfile(BUILD_DIR)
 
     ###############
@@ -1033,6 +685,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/06/03：V1.5.0 批次處理所有功能模組化\n" \
             "2025/03/12：V1.4.5 影片萌芽浮水印功能 BUG 修復\n" \
             "2025/03/12：V1.4.4 批次處理頁籤內新增影片萌芽浮水印功能\n" \
             "2025/03/12：V1.4.3 批次處理頁籤內新增 WEBP 轉 MP4 功能\n" \
