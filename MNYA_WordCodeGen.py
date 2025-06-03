@@ -9,14 +9,18 @@ import os
 import json
 import win32api
 import webbrowser
+import datetime
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images
-from batch_tools.video_tools import add_video_watermark
+from batch_tools.video_tools import add_video_watermark, video_repeat_fade
 from batch_tools.audio_tools import merge_audio
 from batch_tools.gpx_tools import convert_gpx_files
 from batch_tools.subtitle_tools import sub2txt
 from batch_tools.webp_tools import webp_to_mp4
+
+# 子視窗
+from video_repeat_fade_window import open_video_repeat_fade_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -25,7 +29,7 @@ from batch_tools.webp_tools import webp_to_mp4
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.0"  # 版本
+VERSION = "V1.5.1"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -83,6 +87,9 @@ class App(tk.Frame):
 
         # 設定視窗的最小化狀態
         self.master.after(1, self.minimized)
+
+        # 限制影片重複淡化子視窗只能同時一個
+        self.video_repeat_fade_win = None
 
     # 視窗最小化功能
     def minimized(self):
@@ -154,6 +161,56 @@ class App(tk.Frame):
             # 保存全新配置檔
             with open(self.config_path, "w") as f:
                 json.dump(config, f)
+
+    def load_repeat_fade_config(self):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("video_repeat_fade", {})
+        return {}
+
+    def save_repeat_fade_config(self, config_dict):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        config["video_repeat_fade"] = config_dict
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
+    def center_child_window(self, child_win, width, height):
+        # 取得主視窗座標與大小
+        self.master.update_idletasks()
+        x = self.master.winfo_x()
+        y = self.master.winfo_y()
+        w = self.master.winfo_width()
+        h = self.master.winfo_height()
+        # 計算新視窗的左上座標（讓它在主視窗中央）
+        new_x = x + (w - width) // 2
+        new_y = y + (h - height) // 2
+        child_win.geometry(f"{width}x{height}+{new_x}+{new_y}")
+
+    def open_video_repeat_fade_window(self):
+        # 檢查視窗有沒有被開啟過
+        if self.video_repeat_fade_win is not None:
+            try:
+                if self.video_repeat_fade_win.winfo_exists():
+                    self.video_repeat_fade_win.lift()
+                    self.video_repeat_fade_win.focus_force()
+                    return
+            except:
+                self.video_repeat_fade_win = None
+        # 建立新視窗
+        cfg = self.load_repeat_fade_config()
+        self.video_repeat_fade_win = open_video_repeat_fade_window(
+            app=self,
+            parent=self.master,
+            config=cfg,
+            save_config_func=self.save_repeat_fade_config,
+            video_repeat_fade_func=video_repeat_fade,
+            on_close=lambda: setattr(self, 'video_repeat_fade_win', None)
+        )
 
     ###############
     ### 主要功能 ###
@@ -314,7 +371,7 @@ class App(tk.Frame):
                 code += "\n▲\n"
             else:
                 code += "\n"
-            pyperclip.copy(code)
+        pyperclip.copy(code)
 
         # 儲存當前網站的文章編號到配置檔案
         try:
@@ -420,6 +477,19 @@ class App(tk.Frame):
         ToolTip(
             self.webp_to_mp4_button,
             msg="批次處理 WEBP 轉 MP4，輸出格式為 .mp4\n(支援格式：.webp)",
+            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
+        )
+
+        self.video_repeat_fade_button = ttk.Button(
+            self.tab2,
+            text="【影片重複淡化工具】點我開啟參數設定",
+            style="HANDLE.TButton",
+            command=self.open_video_repeat_fade_window
+        )
+        self.video_repeat_fade_button.pack(fill='both', padx=2, pady=2)
+        ToolTip(
+            self.video_repeat_fade_button,
+            msg="將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)",
             delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
         )
 
@@ -685,6 +755,7 @@ class App(tk.Frame):
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
+            "2025/06/03：V1.5.1 批次處理頁籤內新增影片重複淡化工具(子視窗開啟)\n" \
             "2025/06/03：V1.5.0 批次處理所有功能模組化\n" \
             "2025/03/12：V1.4.5 影片萌芽浮水印功能 BUG 修復\n" \
             "2025/03/12：V1.4.4 批次處理頁籤內新增影片萌芽浮水印功能\n" \
@@ -718,7 +789,6 @@ class App(tk.Frame):
 
 
 if __name__ == "__main__":
-    import datetime
 
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
