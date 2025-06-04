@@ -29,7 +29,7 @@ from video_repeat_fade_window import open_video_repeat_fade_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.1"  # 版本
+VERSION = "V1.5.2"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -751,34 +751,17 @@ class App(tk.Frame):
         txt = scrolledtext.ScrolledText(
             self.tab0, width=50, height=20, font=('微軟正黑體', 13))
         txt.pack(fill='both', expand=True)
+        # 讀取更新日誌內容
+        try:
+            with open("changelog.txt", "r", encoding="utf-8") as f:
+                changelog = f.read()
+        except Exception as e:
+            changelog = "（找不到 changelog.txt 或讀取失敗）"
         # 將文字放入文字方塊中
         text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
-            "2025/06/03：V1.5.1 批次處理頁籤內新增影片重複淡化工具(子視窗開啟)\n" \
-            "2025/06/03：V1.5.0 批次處理所有功能模組化\n" \
-            "2025/03/12：V1.4.5 影片萌芽浮水印功能 BUG 修復\n" \
-            "2025/03/12：V1.4.4 批次處理頁籤內新增影片萌芽浮水印功能\n" \
-            "2025/03/12：V1.4.3 批次處理頁籤內新增 WEBP 轉 MP4 功能\n" \
-            "2025/02/21：V1.4.2 程式碼 BUG 修復\n" \
-            "2025/02/21：V1.4.1 增加輸入欄位上下箭頭調整純數字數值功能\n" \
-            "2025/02/19：V1.4.0 增加自動記憶及讀取各網站上次填入之文章編號功能\n" \
-            "2025/02/18：V1.3.9 批次處理頁籤內新增圖片中心處理功能\n" \
-            "2023/03/28：V1.3.8 修正錯誤\n" \
-            "2023/03/28：V1.3.7 批次處理頁籤內新增萌芽網頁浮水印功能\n" \
-            "2023/03/25：V1.3.6 批次處理頁籤內新增圖片左右分割後上下合併功能\n" \
-            "2023/03/23：V1.3.5 複製取用、快速連結內容更新\n" \
-            "2023/03/20：V1.3.4 批次處理頁籤內新增音訊合併功能，需依賴 ffmpeg.exe 及 ffprobe.exe\n" \
-            "2023/03/20：V1.3.3 批次處理頁籤內新增航跡檔轉航點座標功能\n" \
-            "2023/03/19：V1.3.2 新增快速連結頁籤\n" \
-            "2023/03/18：V1.3.1 新增複製取用頁籤\n" \
-            "2023/03/18：V1.3 新增設定頁籤，新增啟動時最小化功能\n" \
-            "2023/03/18：V1.2.3 主要功能新增勾選選項「包含\"▼\"」，與「包含\"▲\"」只能擇一\n" \
-            "2023/03/17：V1.2.2 批次處理頁籤內新增字幕檔轉時間軸標記功能\n" \
-            "2023/03/17：V1.2.1 自動記憶上次關閉前的視窗位置\n" \
-            "2023/03/16：V1.2 新增批次處理頁籤，新增圖片倆倆合併功能\n" \
-            "2023/03/15：V1.1 樣式美化，新增頁籤，預設採用暗黑模式\n" \
-            "2023/03/15：V1.0 初始版釋出\n" \
+            "\n" + changelog + "\n"\
             "\n ■ MIT License ■ \n" \
             "\nCopyright (c) 2025 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n" \
@@ -797,6 +780,7 @@ if __name__ == "__main__":
     style = ttk.Style("superhero")
     root.title(APP_NAME)
     root.geometry("{}x{}".format(WINDOW_WIDTH, WINDOW_HEIGHT))
+    root.minsize(WINDOW_WIDTH, WINDOW_HEIGHT)
     root.iconbitmap('icon.ico')
     app = App(master=root)
     app.mainloop()
