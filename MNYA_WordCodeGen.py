@@ -29,7 +29,7 @@ from video_repeat_fade_window import open_video_repeat_fade_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.3"  # 版本
+VERSION = "V1.5.4"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱

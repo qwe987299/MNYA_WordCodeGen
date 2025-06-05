@@ -42,11 +42,13 @@ def add_video_watermark(video_paths, watermark_path, output_dir):
 def video_repeat_fade(
     input_file, output_dir, minute, second, fade_time, out_width, out_height
 ):
-    """
-    影片重複淡化接續輸出
-    """
     total_length = minute * 60 + second
-    output_file = os.path.join(output_dir, "output_loop.mp4")
+
+    # 產生唯一的輸出檔名
+    base_name = os.path.splitext(os.path.basename(input_file))[0]
+    output_file = os.path.join(output_dir, f"{base_name}_loop.mp4")
+    temp_file = os.path.join(output_dir, f"{base_name}_full.mp4")
+
     # 取得原始影片長度
     cmd = [
         'ffprobe', '-v', 'error',
@@ -107,7 +109,7 @@ def video_repeat_fade(
     ffmpeg_cmd += [
         '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
         '-pix_fmt', 'yuv420p',
-        os.path.join(output_dir, 'output_full.mp4')
+        temp_file
     ]
 
     run1 = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE,
@@ -118,7 +120,7 @@ def video_repeat_fade(
     # 裁切至指定長度
     final_cmd = [
         'ffmpeg', '-y',
-        '-i', os.path.join(output_dir, 'output_full.mp4'),
+        '-i', temp_file,
         '-t', str(total_length),
         '-c:v', 'copy',
         '-c:a', 'copy',
@@ -131,7 +133,7 @@ def video_repeat_fade(
 
     # 清理中間檔案
     try:
-        os.remove(os.path.join(output_dir, 'output_full.mp4'))
+        os.remove(temp_file)
     except Exception:
         pass
 
