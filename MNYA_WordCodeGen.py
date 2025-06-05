@@ -29,7 +29,7 @@ from video_repeat_fade_window import open_video_repeat_fade_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.2"  # 版本
+VERSION = "V1.5.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -398,100 +398,104 @@ class App(tk.Frame):
     ###############
 
     def batch_widgets(self):
+        style = ttk.Style()
+        style.configure('HANDLE.TButton', font=(
+            '微軟正黑體', 12), borderwidth=1, padding=6, relief='ridge')
+        style.map('HANDLE.TButton', background=[
+                  ('pressed', '#1C83E8'), ('active', '#71A9E0')])
 
-        # 字體設定
-        style.configure('HANDLE.TButton', font=('微軟正黑體', 13), background='#A0522D',
-                        borderwidth=1)
-        style.map('HANDLE.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
-                  background=[('pressed', '#A0522D'), ('active', '#8B4513')])
+        # 清空 widget
+        for widget in self.tab2.winfo_children():
+            widget.destroy()
 
-        self.watermark_process_images_button = ttk.Button(
-            self.tab2, text="【圖片萌芽浮水印】點我載入圖片並處理", style="HANDLE.TButton", command=self.watermark_process_images)
-        self.watermark_process_images_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.watermark_process_images_button, msg="為每張圖片上萌芽網頁浮水印，\n位置會在圖片的右下角，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)",
-                delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+        # Canvas 移除外框避免白邊
+        canvas = tk.Canvas(self.tab2, borderwidth=0, highlightthickness=0)
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar = tk.Scrollbar(
+            self.tab2, orient='vertical', command=canvas.yview)
+        scrollbar.pack(side='right', fill='y')
+        canvas.configure(yscrollcommand=scrollbar.set)
 
-        self.video_watermark_button = ttk.Button(
-            self.tab2,
-            text="【影片萌芽浮水印】點我載入影片並處理",
-            style="HANDLE.TButton",
-            command=self.video_watermark
-        )
-        self.video_watermark_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(
-            self.video_watermark_button,
-            msg="為任何 MP4 影片加上萌芽網頁浮水印，\n採直式浮水印，會顯示在影片右上方\n(支援格式：.mp4)",
-            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
-        )
+        inner_frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=inner_frame,
+                             anchor='nw', tags='inner_frame')
 
-        self.image_per2_merge_button = ttk.Button(
-            self.tab2, text="【圖片倆倆合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.load_images)
-        self.image_per2_merge_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.image_per2_merge_button, msg="每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)",
-                delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+        # 讓 inner_frame 寬度隨 canvas 寬度自動同步
+        def resize_inner_frame(event):
+            canvas_width = event.width
+            canvas.itemconfig('inner_frame', width=canvas_width)
+        canvas.bind("<Configure>", resize_inner_frame)
 
-        self.split_and_merge_image_button = ttk.Button(
-            self.tab2, text="【圖片左右分割後上下合併】點我載入圖片並處理", style="HANDLE.TButton", command=self.process_split_and_merge_image)
-        self.split_and_merge_image_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.split_and_merge_image_button, msg="每張圖左右切半後將右半部從下方合併，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)",
-                delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+        def on_canvas_mousewheel(event):
+            canvas.yview_scroll(-1 * int(event.delta / 120), 'units')
+        canvas.bind('<Enter>', lambda e: canvas.bind_all(
+            '<MouseWheel>', on_canvas_mousewheel))
+        canvas.bind('<Leave>', lambda e: canvas.unbind_all('<MouseWheel>'))
+        inner_frame.bind('<Configure>', lambda e: canvas.configure(
+            scrollregion=canvas.bbox('all')))
 
-        self.sub2txt_button = ttk.Button(
-            self.tab2, text="【字幕檔轉時間軸標記】點我載入字幕檔並處理", style="HANDLE.TButton", command=self.sub2txt)
-        self.sub2txt_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.sub2txt_button, msg="全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)", delay=0.2,
-                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+        # ====== 分組資訊與詳細 Tooltip ======
+        groups = [
+            {
+                "label": "🖼 圖片處理",
+                "buttons": [
+                    ("圖片萌芽浮水印", self.watermark_process_images,
+                     "為每張圖片上萌芽網頁浮水印，\n位置會在圖片的右下角，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)"),
+                    ("圖片倆倆合併", self.load_images,
+                     "每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)"),
+                    ("圖片左右分割後上下合併", self.process_split_and_merge_image,
+                     "每張圖左右切半後將右半部從下方合併，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)"),
+                    ("圖片中心處理", self.process_center_images,
+                     "為每張圖片建立高斯模糊背景與白色陰影效果，\n並輸出固定尺寸圖片 (1024x768)\n(支援格式：.jpg、.jpeg、.png)")
+                ]
+            },
+            {
+                "label": "🎬 影片處理",
+                "buttons": [
+                    ("影片萌芽浮水印", self.video_watermark,
+                     "為任何 MP4 影片加上萌芽網頁浮水印，\n採直式浮水印，會顯示在影片右上方\n(支援格式：.mp4)"),
+                    ("WEBP 轉 MP4", self.convert_webp_to_mp4,
+                     "批次處理 WEBP 轉 MP4，輸出格式為 .mp4\n(支援格式：.webp)"),
+                    ("影片重複淡化工具", self.open_video_repeat_fade_window,
+                     "將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)")
+                ]
+            },
+            {
+                "label": "🧩 其他處理",
+                "buttons": [
+                    ("字幕檔轉時間軸標記", self.sub2txt,
+                     "全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)"),
+                    ("航跡檔轉航點座標", self.convert_gpx_files,
+                     "全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)"),
+                    ("音訊合併", self.merge_audio,
+                     "全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)")
+                ]
+            }
+        ]
 
-        self.convert_gpx_button = ttk.Button(
-            self.tab2, text="【航跡檔轉航點座標 】點我載入航跡檔並處理", style="HANDLE.TButton", command=self.convert_gpx_files)
-        self.convert_gpx_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.convert_gpx_button, msg="全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)", delay=0.2,
-                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
+        row_idx = 0
+        for group in groups:
+            frame = ttk.Labelframe(
+                inner_frame, text=group["label"], bootstyle="primary")
+            frame.grid(row=row_idx, column=0, padx=10,
+                       pady=8, sticky="nsew")
+            row_idx += 1
 
-        self.merge_audio_button = ttk.Button(
-            self.tab2, text="【音訊合併】點我載入音訊檔並處理", style="HANDLE.TButton", command=self.merge_audio)
-        self.merge_audio_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(self.merge_audio_button, msg="全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)", delay=0.2,
-                fg="#ffffff", bg="#1c1c1c", padx=8, pady=5)
-
-        self.center_process_images_button = ttk.Button(
-            self.tab2,
-            text="【圖片中心處理】點我載入圖片並處理",
-            style="HANDLE.TButton",
-            command=self.process_center_images
-        )
-        self.center_process_images_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(
-            self.center_process_images_button,
-            msg="為每張圖片建立高斯模糊背景與白色陰影效果，\n並輸出固定尺寸圖片 (1024x768)\n(支援格式：.jpg、.jpeg、.png)",
-            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
-        )
-
-        self.webp_to_mp4_button = ttk.Button(
-            self.tab2,
-            text="【WEBP 轉 MP4】點我載入 WEBP 並處理",
-            style="HANDLE.TButton",
-            command=self.convert_webp_to_mp4
-        )
-        self.webp_to_mp4_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(
-            self.webp_to_mp4_button,
-            msg="批次處理 WEBP 轉 MP4，輸出格式為 .mp4\n(支援格式：.webp)",
-            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
-        )
-
-        self.video_repeat_fade_button = ttk.Button(
-            self.tab2,
-            text="【影片重複淡化工具】點我開啟參數設定",
-            style="HANDLE.TButton",
-            command=self.open_video_repeat_fade_window
-        )
-        self.video_repeat_fade_button.pack(fill='both', padx=2, pady=2)
-        ToolTip(
-            self.video_repeat_fade_button,
-            msg="將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)",
-            delay=0.2, fg="#ffffff", bg="#1c1c1c", padx=8, pady=5
-        )
+            btns = group["buttons"]
+            for i, (btn_text, btn_cmd, btn_tip) in enumerate(btns):
+                btn = ttk.Button(
+                    frame,
+                    text=f"{btn_text}",
+                    style="HANDLE.TButton",
+                    command=btn_cmd,
+                    bootstyle="secondary outline",
+                )
+                btn.grid(row=i // 2, column=i % 2, padx=5, pady=5, sticky="ew")
+                ToolTip(btn, msg=btn_tip, delay=0.2, fg="#fff",
+                        bg="#1c1c1c", padx=8, pady=5)
+            for col in range(2):
+                frame.grid_columnconfigure(col, weight=1)
+        inner_frame.grid_columnconfigure(0, weight=1)
 
     ## 批次處理：圖片萌芽浮水印 ##
 
@@ -648,10 +652,15 @@ class App(tk.Frame):
         buttons = [["發圖文", "🆕"], ["發公告", "ℹ️"], ["發影片", "🎬"], ["發討論", "💬"], ["發連結", "🔗"], ["發警訊", "⚠️"], ["給按讚", "👍"], ["給倒讚", "👎"], ["比中指", "🖕"],
                    ["YT嵌入", "<iframe src=\"https://www.youtube.com/embed/\" width=\"1024\" height=\"576\" frameborder=\"0\" allowfullscreen=\"allowfullscreen\"></iframe>\n▲ 影片欣賞<strong>《》</strong>"], ["航跡圖", "<iframe src='XXX' width='1024' height='768'></iframe>\n▲ 航跡圖（<a href='XXX' target='_blank' rel='noopener noreferrer'>GPX 下載</a>）。"], ["NSFW", "🔞"], ["沒問題", "👌"], ["方綠勾", "✅"], ["方綠叉", "❎"], ["一張紙", "📄"], ["筆跟紙", "📝"], ["方塊零", "0️⃣"], ["方塊一", "1️⃣"], ["方塊二", "2️⃣"], ["方塊三", "3️⃣"], ["方塊四", "4️⃣"], ["方塊五", "5️⃣"], ["方塊六", "6️⃣"], ["方塊七", "7️⃣"], ["方塊八", "8️⃣"], ["方塊九", "9️⃣"], ["方塊十", "🔟"], ["一座山", "⛰"], ["調色板", "🎨"]]
 
+        style.configure('COPY.TButton', font=('微軟正黑體', 12),
+                        width=6, height=1, padding=(4, 6), relief='ridge')
+        style.map('COPY.TButton',
+                  background=[('pressed', '#1C83E8'), ('active', '#71A9E0')]
+                  )
+
         for i, button in enumerate(buttons):
-            new_button = tk.Button(button_frame, text=button[0], font=font,
-                                   width=6, height=1,
-                                   command=lambda text=button[1]: self.copy_text(text))
+            new_button = ttk.Button(button_frame, text=button[0], style='COPY.TButton',
+                                    command=lambda text=button[1]: self.copy_text(text))
             new_button.grid(row=i//6, column=i % 6, padx=1, pady=1)
 
     def copy_text(self, text):
@@ -711,10 +720,15 @@ class App(tk.Frame):
             ["萌芽搜尋中心", "https://mnya.tw/search"]
         ]
 
+        style.configure('LINK.TButton', font=('微軟正黑體', 13), width=19,
+                        height=1, padding=5, relief='ridge')
+        style.map('LINK.TButton',
+                  background=[('pressed', '#1C83E8'), ('active', '#71A9E0')]
+                  )
+
         for i, button in enumerate(buttons):
-            new_button = tk.Button(button_frame, text=button[0], font=font,
-                                   width=18, height=1,
-                                   command=lambda text=button[1]: self.open_browser(text))
+            new_button = ttk.Button(button_frame, text=button[0], style='LINK.TButton',
+                                    command=lambda text=button[1]: self.open_browser(text))
             new_button.grid(row=i//2, column=i % 2, padx=1, pady=1)
 
     def open_browser(self, url):
