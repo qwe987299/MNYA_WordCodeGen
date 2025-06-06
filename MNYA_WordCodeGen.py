@@ -32,7 +32,7 @@ from text_batch_replace_window import open_text_batch_replace_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.6"  # 版本
+VERSION = "V1.6.0"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -262,10 +262,6 @@ class App(tk.Frame):
         font14 = tkFont.Font(family="微軟正黑體", size=14)
         font = tkFont.Font(family="微軟正黑體", size=13)
         style = ttk.Style()
-        style.configure('OK.TButton', font=('微軟正黑體', 13), background='green',
-                        borderwidth=1)
-        style.map('OK.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
-                  background=[('pressed', 'green'), ('active', 'dark green')])
 
         # 萌芽系列網站按鈕組
         self.sites = [("💻 萌芽綜合天地", "cc"),
@@ -308,66 +304,85 @@ class App(tk.Frame):
         self.image_width_var = tk.StringVar(value="1024")
         self.image_height_var = tk.StringVar(value="768")
 
-        tk.Label(input_frame, text="年份：", font=font).pack()
+        tk.Label(input_frame, text="年份：", font=font).pack(pady=2)
         entry_year = tk.Entry(
             input_frame, textvariable=self.year_var, font=font)
         entry_year.pack()
         self.bind_numeric_entry(entry_year, self.year_var)
 
-        tk.Label(input_frame, text="文章編號：", font=font).pack()
+        tk.Label(input_frame, text="文章編號：", font=font).pack(pady=2)
         entry_article = tk.Entry(
             input_frame, textvariable=self.article_var, font=font)
         entry_article.pack()
         self.bind_numeric_entry(entry_article, self.article_var)
 
-        tk.Label(input_frame, text="文章圖片數：", font=font).pack()
+        tk.Label(input_frame, text="文章圖片數：", font=font).pack(pady=2)
         entry_image_num = tk.Entry(
             input_frame, textvariable=self.image_num_var, font=font)
         entry_image_num.pack()
         self.bind_numeric_entry(entry_image_num, self.image_num_var)
 
-        tk.Label(input_frame, text="圖片寬度：", font=font).pack()
+        tk.Label(input_frame, text="圖片寬高：", font=font).pack(pady=2)
+
+        image_size_entry_frame = tk.Frame(input_frame)
+        image_size_entry_frame.pack()
+
         entry_image_width = tk.Entry(
-            input_frame, textvariable=self.image_width_var, font=font)
-        entry_image_width.pack()
+            image_size_entry_frame, textvariable=self.image_width_var, width=7, font=font)
+        entry_image_width.pack(side=tk.LEFT)
         self.bind_numeric_entry(entry_image_width, self.image_width_var)
 
-        tk.Label(input_frame, text="圖片高度：", font=font).pack()
+        tk.Label(image_size_entry_frame, text=" x ",
+                 font=font).pack(side=tk.LEFT)
+
         entry_image_height = tk.Entry(
-            input_frame, textvariable=self.image_height_var, font=font)
-        entry_image_height.pack()
+            image_size_entry_frame, textvariable=self.image_height_var, width=7, font=font)
+        entry_image_height.pack(side=tk.LEFT)
         self.bind_numeric_entry(entry_image_height, self.image_height_var)
 
+        tk.Label(image_size_entry_frame, text=" px",
+                 font=font).pack(side=tk.LEFT)
+
         space_frame = tk.Frame(input_frame)
-        space_frame.pack(pady=2)
+        space_frame.pack(pady=5)
 
         def set_image_size(width, height):
             self.image_width_var.set(width)
             self.image_height_var.set(height)
 
-        button_frame = tk.Frame(input_frame)
-        button_frame.pack()
+        button_groups = [
+            [(1024, 768), (1024, 473), (1024, 576)],
+            [(1024, 640), (1030, 730), (1280, 768)],
+            [(690, 768), (710, 768), (1920, 1080)]
+        ]
 
-        tk.Button(button_frame, text="1024 x 768",
-                  command=lambda: set_image_size(1024, 768)).pack(side=tk.LEFT, padx=1, pady=1)
-        tk.Button(button_frame, text="1024 x 473",
-                  command=lambda: set_image_size(1024, 473)).pack(side=tk.LEFT, padx=1, pady=1)
-        tk.Button(button_frame, text="1024 x 576",
-                  command=lambda: set_image_size(1024, 576)).pack(side=tk.LEFT, padx=1, pady=1)
+        style.configure('SIZE.TButton',
+                        font=('微軟正黑體', 8),
+                        width=10, height=1,
+                        padding=2, relief='ridge')
+        style.map('SIZE.TButton',
+                  background=[('pressed', '#1C83E8'), ('active', '#71A9E0')]
+                  )
 
-        button_frame2 = tk.Frame(input_frame)
-        button_frame2.pack()
-
-        tk.Button(button_frame2, text="710 x 768",
-                  command=lambda: set_image_size(710, 768)).pack(side=tk.LEFT, padx=1, pady=1)
-        tk.Button(button_frame2, text="1280 x 768",
-                  command=lambda: set_image_size(1280, 768)).pack(side=tk.LEFT, padx=1, pady=1)
-        tk.Button(button_frame2, text="1920 x 1080",
-                  command=lambda: set_image_size(1920, 1080)).pack(side=tk.LEFT, padx=1, pady=1)
+        for group in button_groups:
+            button_frame = tk.Frame(input_frame)
+            button_frame.pack()
+            for w, h in group:
+                text = f"{w} x {h}"
+                ttk.Button(
+                    button_frame,
+                    text=text,
+                    style='SIZE.TButton',
+                    command=lambda w=w, h=h: set_image_size(w, h)
+                ).pack(side=tk.LEFT, padx=1, pady=1)
 
         # 生成圖文原始碼按鈕
+        style.configure('OK.TButton', font=('微軟正黑體', 13), width=18,
+                        height=1, padding=(12, 8), background='green', borderwidth=1)
+        style.map('OK.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
+                  background=[('pressed', 'green'), ('active', 'dark green')])
         ttk.Button(input_frame, text="📑 生成原始碼到剪貼簿", style="OK.TButton",
-                   command=self.generate_code).pack(padx=5, pady=5)
+                   command=self.generate_code).pack(padx=1, pady=6)
 
     # 確保只能選擇其中一個按鈕的功能
     def update_checkbutton_state(self, selected_var):
@@ -861,6 +876,7 @@ class App(tk.Frame):
             "\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
 
         txt.insert("1.0", text)
+        txt.config(state="disabled")
 
 
 if __name__ == "__main__":
