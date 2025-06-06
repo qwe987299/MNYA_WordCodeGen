@@ -10,6 +10,8 @@ import json
 import win32api
 import webbrowser
 import datetime
+import subprocess
+import sys
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images
@@ -29,7 +31,7 @@ from video_repeat_fade_window import open_video_repeat_fade_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.4"  # 版本
+VERSION = "V1.5.5"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -761,21 +763,57 @@ class App(tk.Frame):
     ###############
 
     def about_widgets(self):
-        # 建立可捲動的文字方塊
+
+        # 建立 Frame 放版本號與更新按鈕
+        version_frame = tk.Frame(self.tab0)
+        version_frame.pack(anchor='nw', padx=5, pady=5)
+
+        # 版本號 Label
+        tk.Label(version_frame, text=APP_NAME + " " + VERSION,
+                 font=('微軟正黑體', 12)).pack(side='left')
+
+        # 執行更新按鈕
+        def run_auto_update():
+            if getattr(sys, 'frozen', False):
+                app_dir = os.path.dirname(sys.executable)
+            else:
+                app_dir = os.path.dirname(os.path.abspath(__file__))
+            batch_path = os.path.join(app_dir, "auto_update.bat")
+            if os.path.exists(batch_path):
+                subprocess.Popen(['cmd', '/c', batch_path], cwd=app_dir)
+                self.master.destroy()
+            else:
+                messagebox.showerror("找不到檔案", "auto_update.bat 不存在！")
+
+        style.configure('UPDATE.TButton', font=(
+            '微軟正黑體', 11), padding=(5, 3), relief='ridge')
+        style.map('UPDATE.TButton',
+                  background=[('pressed', '#1C83E8'), ('active', '#71A9E0')]
+                  )
+
+        update_btn = ttk.Button(
+            version_frame,
+            text="執行更新",
+            style='UPDATE.TButton',
+            command=run_auto_update
+        )
+        update_btn.pack(side='left', padx=10)
+
+        # 捲動文字區
         txt = scrolledtext.ScrolledText(
-            self.tab0, width=50, height=20, font=('微軟正黑體', 13))
+            self.tab0, width=50, height=20, font=('微軟正黑體', 12))
         txt.pack(fill='both', expand=True)
-        # 讀取更新日誌內容
+        # 讀取 changelog.txt
         try:
             with open("changelog.txt", "r", encoding="utf-8") as f:
                 changelog = f.read()
         except Exception as e:
             changelog = "（找不到 changelog.txt 或讀取失敗）"
-        # 將文字放入文字方塊中
-        text = "版本：" + VERSION + "\n軟體開發及維護者：萌芽站長\n" \
+        # 組合文字內容
+        text = "軟體開發及維護者：萌芽站長\n" \
             "萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\n ■ 更新日誌 ■ \n" \
-            "\n" + changelog + "\n"\
+            "\n" + changelog + "\n" \
             "\n ■ MIT License ■ \n" \
             "\nCopyright (c) 2025 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n" \
