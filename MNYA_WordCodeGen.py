@@ -23,6 +23,7 @@ from batch_tools.webp_tools import webp_to_mp4
 
 # 子視窗
 from video_repeat_fade_window import open_video_repeat_fade_window
+from text_batch_replace_window import open_text_batch_replace_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -31,7 +32,7 @@ from video_repeat_fade_window import open_video_repeat_fade_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.5.5"  # 版本
+VERSION = "V1.5.6"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -90,8 +91,9 @@ class App(tk.Frame):
         # 設定視窗的最小化狀態
         self.master.after(1, self.minimized)
 
-        # 限制影片重複淡化子視窗只能同時一個
+        # 限制子視窗只能同時一個
         self.video_repeat_fade_win = None
+        self.text_batch_replace_win = None
 
     # 視窗最小化功能
     def minimized(self):
@@ -181,6 +183,23 @@ class App(tk.Frame):
         with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(config, f)
 
+    def load_text_batch_replace_config(self):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("text_batch_replace", {})
+        return {}
+
+    def save_text_batch_replace_config(self, config_dict):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        config["text_batch_replace"] = config_dict
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -212,6 +231,25 @@ class App(tk.Frame):
             save_config_func=self.save_repeat_fade_config,
             video_repeat_fade_func=video_repeat_fade,
             on_close=lambda: setattr(self, 'video_repeat_fade_win', None)
+        )
+
+    def open_text_batch_replace_window(self):
+        # 檢查視窗是否已開啟
+        if self.text_batch_replace_win is not None:
+            try:
+                if self.text_batch_replace_win.winfo_exists():
+                    self.text_batch_replace_win.lift()
+                    self.text_batch_replace_win.focus_force()
+                    return
+            except:
+                self.text_batch_replace_win = None
+        cfg = self.load_text_batch_replace_config()
+        self.text_batch_replace_win = open_text_batch_replace_window(
+            app=self,
+            parent=self.master,
+            config=cfg,
+            save_config_func=self.save_text_batch_replace_config,
+            on_close=lambda: setattr(self, 'text_batch_replace_win', None)
         )
 
     ###############
@@ -470,7 +508,9 @@ class App(tk.Frame):
                     ("航跡檔轉航點座標", self.convert_gpx_files,
                      "全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)"),
                     ("音訊合併", self.merge_audio,
-                     "全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)")
+                     "全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)"),
+                    ("文字批次取代工具", self.open_text_batch_replace_window,
+                     "批次執行文字取代規則，\n可自訂多條規則，由上至下依序處理\n每行格式如：\"A\" -> \"B\"")
                 ]
             }
         ]
