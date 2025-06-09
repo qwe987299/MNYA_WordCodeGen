@@ -5,6 +5,7 @@ import pyperclip
 
 def open_text_batch_replace_window(app, parent, config, save_config_func, on_close):
     subwin = tk.Toplevel(parent)
+    subwin.withdraw()  # 先隱藏
     subwin.title("文字批次取代工具")
     subwin.resizable(False, False)
     subwin.iconbitmap('icon.ico')
@@ -20,6 +21,7 @@ def open_text_batch_replace_window(app, parent, config, save_config_func, on_clo
     new_x = x + (w - width) // 2
     new_y = y + (h - height) // 2
     subwin.geometry(f"{width}x{height}+{new_x}+{new_y}")
+    subwin.deiconify()  # 再顯示
 
     font_label = ('微軟正黑體', 12)
     font_text = ('微軟正黑體', 12)

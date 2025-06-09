@@ -5,21 +5,8 @@ import threading
 
 
 def open_video_repeat_fade_window(app, parent, config, save_config_func, video_repeat_fade_func, on_close):
-    """
-    開啟「影片重複淡化工具」子視窗，並進行參數設定、執行與結果回傳。
-
-    參數說明:
-        app                  : 主程式 App 實例，若需與主程式互動可使用（可選）。
-        parent               : 主視窗 (通常為 root 或 app.master)，用於建立子視窗的父物件。
-        config               : 初始化視窗時帶入的設定參數 (dict)，例如過去儲存的使用值。
-        save_config_func     : 呼叫此函式時儲存參數設定，通常為主程式提供的函式。
-        video_repeat_fade_func: 處理影片重複淡化的實際運算函式（如 batch_tools.video_tools 內函式）。
-        on_close             : 子視窗關閉時呼叫的 callback，通常用於將主程式的視窗狀態變數設為 None。
-
-    回傳:
-        傳回建立的 Toplevel 視窗 (tk.Toplevel 實例)，可供主程式做單例視窗管理。
-    """
     subwin = tk.Toplevel(parent)
+    subwin.withdraw()  # 先隱藏
     subwin.title("影片重複淡化工具")
     subwin.resizable(False, False)
     subwin.iconbitmap('icon.ico')
@@ -27,16 +14,6 @@ def open_video_repeat_fade_window(app, parent, config, save_config_func, video_r
     subwin.transient(parent)
     subwin.lift()
     subwin.focus_force()
-
-    # 關閉視窗時
-    def handle_close():
-        if callable(on_close):
-            on_close()
-        subwin.destroy()
-
-    subwin.protocol("WM_DELETE_WINDOW", handle_close)
-
-    # 視窗置中
     parent.update_idletasks()
     x = parent.winfo_x()
     y = parent.winfo_y()
@@ -45,6 +22,15 @@ def open_video_repeat_fade_window(app, parent, config, save_config_func, video_r
     new_x = x + (w - width) // 2
     new_y = y + (h - height) // 2
     subwin.geometry(f"{width}x{height}+{new_x}+{new_y}")
+    subwin.deiconify()  # 再顯示
+
+    # 關閉處理
+    def handle_close():
+        if callable(on_close):
+            on_close()
+        subwin.destroy()
+
+    subwin.protocol("WM_DELETE_WINDOW", handle_close)
 
     frame = tk.Frame(subwin, bg='#f4f4f7')
     frame.pack(padx=15, pady=10, fill=tk.BOTH, expand=True)

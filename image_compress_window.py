@@ -7,6 +7,7 @@ def open_image_compress_window(
     app, parent, config, save_config_func, compress_func, on_close
 ):
     subwin = tk.Toplevel(parent)
+    subwin.withdraw()  # 先隱藏
     subwin.title("圖片壓縮工具")
     subwin.resizable(False, False)
     subwin.iconbitmap('icon.ico')
@@ -14,15 +15,6 @@ def open_image_compress_window(
     subwin.transient(parent)
     subwin.lift()
     subwin.focus_force()
-
-    # 關閉處理
-    def handle_close():
-        if callable(on_close):
-            on_close()
-        subwin.destroy()
-    subwin.protocol("WM_DELETE_WINDOW", handle_close)
-
-    # 置中顯示
     parent.update_idletasks()
     x = parent.winfo_x()
     y = parent.winfo_y()
@@ -31,6 +23,14 @@ def open_image_compress_window(
     new_x = x + (w - width) // 2
     new_y = y + (h - height) // 2
     subwin.geometry(f"{width}x{height}+{new_x}+{new_y}")
+    subwin.deiconify()  # 再顯示
+
+    # 關閉處理
+    def handle_close():
+        if callable(on_close):
+            on_close()
+        subwin.destroy()
+    subwin.protocol("WM_DELETE_WINDOW", handle_close)
 
     frame = tk.Frame(subwin, bg='#f4f4f7')
     frame.pack(padx=15, pady=10, fill=tk.BOTH, expand=True)
