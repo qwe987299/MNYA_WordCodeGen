@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 # 匯入 batch_tools 各模組
-from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images
+from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images, compress_images_by_cjpeg
 from batch_tools.video_tools import add_video_watermark, video_repeat_fade
 from batch_tools.audio_tools import merge_audio
 from batch_tools.gpx_tools import convert_gpx_files
@@ -24,6 +24,7 @@ from batch_tools.webp_tools import webp_to_mp4
 # 子視窗
 from video_repeat_fade_window import open_video_repeat_fade_window
 from text_batch_replace_window import open_text_batch_replace_window
+from image_compress_window import open_image_compress_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -32,7 +33,7 @@ from text_batch_replace_window import open_text_batch_replace_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.6.0"  # 版本
+VERSION = "V1.6.1"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -94,6 +95,7 @@ class App(tk.Frame):
         # 限制子視窗只能同時一個
         self.video_repeat_fade_win = None
         self.text_batch_replace_win = None
+        self.image_compress_win = None
 
     # 視窗最小化功能
     def minimized(self):
@@ -200,6 +202,23 @@ class App(tk.Frame):
         with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(config, f)
 
+    def load_image_compress_config(self):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("image_compress", {})
+        return {}
+
+    def save_image_compress_config(self, config_dict):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        config["image_compress"] = config_dict
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -250,6 +269,25 @@ class App(tk.Frame):
             config=cfg,
             save_config_func=self.save_text_batch_replace_config,
             on_close=lambda: setattr(self, 'text_batch_replace_win', None)
+        )
+
+    def open_image_compress_window(self):
+        if self.image_compress_win is not None:
+            try:
+                if self.image_compress_win.winfo_exists():
+                    self.image_compress_win.lift()
+                    self.image_compress_win.focus_force()
+                    return
+            except:
+                self.image_compress_win = None
+        cfg = self.load_image_compress_config()
+        self.image_compress_win = open_image_compress_window(
+            app=self,
+            parent=self.master,
+            config=cfg,
+            save_config_func=self.save_image_compress_config,
+            compress_func=compress_images_by_cjpeg,
+            on_close=lambda: setattr(self, 'image_compress_win', None)
         )
 
     ###############
@@ -455,7 +493,7 @@ class App(tk.Frame):
     def batch_widgets(self):
         style = ttk.Style()
         style.configure('HANDLE.TButton', font=(
-            '微軟正黑體', 12), borderwidth=1, padding=6, relief='ridge')
+            '微軟正黑體', 12), borderwidth=1, padding=5, relief='ridge')
         style.map('HANDLE.TButton', background=[
                   ('pressed', '#1C83E8'), ('active', '#71A9E0')])
 
@@ -489,7 +527,7 @@ class App(tk.Frame):
         inner_frame.bind('<Configure>', lambda e: canvas.configure(
             scrollregion=canvas.bbox('all')))
 
-        # ====== 分組資訊與詳細 Tooltip ======
+        # 分組資訊與詳細 Tooltip
         groups = [
             {
                 "label": "🖼 圖片處理",
@@ -501,7 +539,9 @@ class App(tk.Frame):
                     ("圖片左右分割後上下合併", self.process_split_and_merge_image,
                      "每張圖左右切半後將右半部從下方合併，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)"),
                     ("圖片中心處理", self.process_center_images,
-                     "為每張圖片建立高斯模糊背景與白色陰影效果，\n並輸出固定尺寸圖片 (1024x768)\n(支援格式：.jpg、.jpeg、.png)")
+                     "為每張圖片建立高斯模糊背景與白色陰影效果，\n並輸出固定尺寸圖片 (1024x768)\n(支援格式：.jpg、.jpeg、.png)"),
+                    ("圖片壓縮", self.open_image_compress_window,
+                     "批次壓縮 JPG/JPEG 圖片，支援設定品質、漸進式、是否覆蓋原檔\n(支援格式：.jpg、.jpeg)")
                 ]
             },
             {
@@ -535,7 +575,7 @@ class App(tk.Frame):
             frame = ttk.Labelframe(
                 inner_frame, text=group["label"], bootstyle="primary")
             frame.grid(row=row_idx, column=0, padx=10,
-                       pady=8, sticky="nsew")
+                       pady=5, sticky="nsew")
             row_idx += 1
 
             btns = group["buttons"]

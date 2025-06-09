@@ -1,5 +1,6 @@
 import os
 from PIL import Image, ImageEnhance, ImageDraw, ImageFilter
+import subprocess
 
 
 def add_watermark(image_paths, watermark_path, output_dir):
@@ -103,3 +104,51 @@ def center_process_images(image_paths, output_dir, target_size=(1024, 768)):
             final_bg.save(output_path, format="JPEG", quality=90)
         except Exception as e:
             print(f"處理 {filename} 時發生錯誤: {e}")
+
+
+def compress_images_by_cjpeg(
+    image_paths, cjpeg_path="cjpeg.exe",
+    quality=85, progressive=True, overwrite=True
+):
+    output_files = []
+    failed_files = []
+    for src_path in image_paths:
+        if not os.path.isfile(src_path):
+            continue
+        filename = os.path.basename(src_path)
+        src_dir = os.path.dirname(src_path)
+        # 覆蓋模式：先輸出到暫存檔
+        if overwrite:
+            dest_path = os.path.join(src_dir, filename + ".tmp.jpg")
+        else:
+            out_dir = os.path.join(src_dir, "output")
+            os.makedirs(out_dir, exist_ok=True)
+            dest_path = os.path.join(out_dir, filename)
+        # 組合參數
+        cmd = [
+            cjpeg_path,
+            "-quality", str(quality),
+            "-optimize",
+        ]
+        if progressive:
+            cmd.append("-progressive")
+        else:
+            cmd.append("-baseline")
+        cmd += [
+            "-outfile", dest_path,
+            src_path
+        ]
+        # 執行 cjpeg.exe
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            if overwrite:
+                try:
+                    os.replace(dest_path, src_path)
+                    output_files.append(src_path)
+                except Exception as e:
+                    failed_files.append((src_path, str(e)))
+            else:
+                output_files.append(dest_path)
+        else:
+            failed_files.append((src_path, result.stderr))
+    return output_files, failed_files
