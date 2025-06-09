@@ -33,7 +33,7 @@ from image_compress_window import open_image_compress_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.6.1"  # 版本
+VERSION = "V1.6.2"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱

@@ -1,6 +1,7 @@
 import os
 from PIL import Image, ImageEnhance, ImageDraw, ImageFilter
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def add_watermark(image_paths, watermark_path, output_dir):
@@ -106,49 +107,79 @@ def center_process_images(image_paths, output_dir, target_size=(1024, 768)):
             print(f"處理 {filename} 時發生錯誤: {e}")
 
 
+def _get_max_workers():
+    cpu_count = os.cpu_count()
+    if cpu_count is None or cpu_count < 1:
+        return 4  # 預設值
+    return min(32, cpu_count + 4)
+
+
+def compress_one_image(src_path, cjpeg_path, quality, progressive, overwrite):
+    if not os.path.isfile(src_path):
+        return None, (src_path, "檔案不存在")
+    filename = os.path.basename(src_path)
+    src_dir = os.path.dirname(src_path)
+    if overwrite:
+        dest_path = os.path.join(src_dir, filename + ".tmp.jpg")
+    else:
+        out_dir = os.path.join(src_dir, "output")
+        os.makedirs(out_dir, exist_ok=True)
+        dest_path = os.path.join(out_dir, filename)
+    cmd = [
+        cjpeg_path,
+        "-quality", str(quality),
+        "-optimize",
+    ]
+    if progressive:
+        cmd.append("-progressive")
+    else:
+        cmd.append("-baseline")
+    cmd += [
+        "-outfile", dest_path,
+        src_path
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW  # 關閉終端機彈出
+        )
+    except Exception as e:
+        return None, (src_path, str(e))
+
+    if result.returncode == 0:
+        if overwrite:
+            try:
+                os.replace(dest_path, src_path)
+                return src_path, None
+            except Exception as e:
+                return None, (src_path, str(e))
+        else:
+            return dest_path, None
+    else:
+        return None, (src_path, result.stderr)
+
+
 def compress_images_by_cjpeg(
     image_paths, cjpeg_path="cjpeg.exe",
     quality=85, progressive=True, overwrite=True
 ):
     output_files = []
     failed_files = []
-    for src_path in image_paths:
-        if not os.path.isfile(src_path):
-            continue
-        filename = os.path.basename(src_path)
-        src_dir = os.path.dirname(src_path)
-        # 覆蓋模式：先輸出到暫存檔
-        if overwrite:
-            dest_path = os.path.join(src_dir, filename + ".tmp.jpg")
-        else:
-            out_dir = os.path.join(src_dir, "output")
-            os.makedirs(out_dir, exist_ok=True)
-            dest_path = os.path.join(out_dir, filename)
-        # 組合參數
-        cmd = [
-            cjpeg_path,
-            "-quality", str(quality),
-            "-optimize",
-        ]
-        if progressive:
-            cmd.append("-progressive")
-        else:
-            cmd.append("-baseline")
-        cmd += [
-            "-outfile", dest_path,
-            src_path
-        ]
-        # 執行 cjpeg.exe
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0:
-            if overwrite:
-                try:
-                    os.replace(dest_path, src_path)
-                    output_files.append(src_path)
-                except Exception as e:
-                    failed_files.append((src_path, str(e)))
-            else:
-                output_files.append(dest_path)
-        else:
-            failed_files.append((src_path, result.stderr))
+    max_workers = _get_max_workers()
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for src_path in image_paths:
+            futures.append(
+                executor.submit(
+                    compress_one_image, src_path, cjpeg_path, quality, progressive, overwrite
+                )
+            )
+        for future in as_completed(futures):
+            output, fail = future.result()
+            if output:
+                output_files.append(output)
+            if fail:
+                failed_files.append(fail)
     return output_files, failed_files
