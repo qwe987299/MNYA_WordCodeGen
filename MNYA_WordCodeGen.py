@@ -22,9 +22,9 @@ from batch_tools.subtitle_tools import sub2txt
 from batch_tools.webp_tools import webp_to_mp4
 
 # 子視窗
-from video_repeat_fade_window import open_video_repeat_fade_window
-from text_batch_replace_window import open_text_batch_replace_window
-from image_compress_window import open_image_compress_window
+from windows.video_repeat_fade_window import open_video_repeat_fade_window
+from windows.text_batch_replace_window import open_text_batch_replace_window
+from windows.image_compress_window import open_image_compress_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -33,7 +33,7 @@ from image_compress_window import open_image_compress_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.6.3"  # 版本
+VERSION = "V1.6.4"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -96,6 +96,35 @@ class App(tk.Frame):
         self.video_repeat_fade_win = None
         self.text_batch_replace_win = None
         self.image_compress_win = None
+
+        # 儲存複製按鈕的還原任務 ID
+        self._copied_btn_after_id = None
+
+        # 全域鍵功能
+        self.master.bind('<Return>', self.on_global_return)
+        self.master.bind('<KP_Enter>', self.on_global_return)
+
+    # 全域鍵回調函數
+    def on_global_return(self, event=None):
+        if self.tabControl.index(self.tabControl.select()) == 0:
+            self.generate_and_show_copied()
+
+    # 生成原始碼並顯示已複製的按鈕文字
+    def generate_and_show_copied(self):
+        self.generate_code()
+        old_text = "📑 生成原始碼到剪貼簿"
+        # 取消前一個還原任務
+        if hasattr(self, '_copied_btn_after_id') and self._copied_btn_after_id:
+            self.generate_btn.after_cancel(self._copied_btn_after_id)
+        self.generate_btn.config(text="✅ 已複製！")
+        self._copied_btn_after_id = self.generate_btn.after(
+            1000, lambda: self._restore_generate_btn_text(old_text)
+        )
+
+    # 還原生成原始碼按鈕文字
+    def _restore_generate_btn_text(self, old_text):
+        self.generate_btn.config(text=old_text)
+        self._copied_btn_after_id = None
 
     # 視窗最小化功能
     def minimized(self):
@@ -419,8 +448,14 @@ class App(tk.Frame):
                         height=1, padding=(12, 8), background='green', borderwidth=1)
         style.map('OK.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
                   background=[('pressed', 'green'), ('active', 'dark green')])
-        ttk.Button(input_frame, text="📑 生成原始碼到剪貼簿", style="OK.TButton",
-                   command=self.generate_code).pack(padx=1, pady=6)
+
+        self.generate_btn = ttk.Button(
+            input_frame,
+            text="📑 生成原始碼到剪貼簿",
+            style="OK.TButton",
+            command=self.generate_and_show_copied
+        )
+        self.generate_btn.pack(padx=1, pady=6)
 
     # 確保只能選擇其中一個按鈕的功能
     def update_checkbutton_state(self, selected_var):
