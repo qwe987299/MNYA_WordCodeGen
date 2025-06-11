@@ -33,7 +33,7 @@ from windows.image_compress_window import open_image_compress_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 430  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.6.4"  # 版本
+VERSION = "V1.6.5"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -567,39 +567,41 @@ class App(tk.Frame):
             {
                 "label": "🖼 圖片處理",
                 "buttons": [
-                    ("圖片萌芽浮水印", self.watermark_process_images,
+                    ("🌊 圖片萌芽浮水印", self.watermark_process_images,
                      "為每張圖片上萌芽網頁浮水印，\n位置會在圖片的右下角，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)"),
-                    ("圖片倆倆合併", self.load_images,
+                    ("➗ 圖片倆倆合併", self.load_images,
                      "每兩張圖片水平合併成一張圖片，\n圖片總數為單數則最後一張不合併\n(支援格式：.jpg、.jpeg、.png)"),
-                    ("圖片左右分割後上下合併", self.process_split_and_merge_image,
+                    ("🔀 圖片左右分割後上下合併", self.process_split_and_merge_image,
                      "每張圖左右切半後將右半部從下方合併，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)"),
-                    ("圖片中心處理", self.process_center_images,
+                    ("🎯 圖片中心處理", self.process_center_images,
                      "為每張圖片建立高斯模糊背景與白色陰影效果，\n並輸出固定尺寸圖片 (1024x768)\n(支援格式：.jpg、.jpeg、.png)"),
-                    ("圖片壓縮", self.open_image_compress_window,
-                     "批次壓縮 JPG/JPEG 圖片，支援設定品質、漸進式、是否覆蓋原檔\n(支援格式：.jpg、.jpeg)")
+                    ("⚡️ 快速圖片壓縮", self.batch_image_compress_with_last_config,
+                     "批次壓縮 JPG/JPEG 圖片，\n將自動以上次「進階圖片壓縮」設定或預設值進行，\n完成自動開啟目錄\n(支援格式：.jpg、.jpeg)"),
+                    ("⚙️ 進階圖片壓縮", self.open_image_compress_window,
+                     "批次壓縮 JPG/JPEG 圖片，\n支援設定品質、漸進式、是否覆蓋原檔\n(支援格式：.jpg、.jpeg)"),
                 ]
             },
             {
                 "label": "🎬 影片處理",
                 "buttons": [
-                    ("影片萌芽浮水印", self.video_watermark,
+                    ("💧 影片萌芽浮水印", self.video_watermark,
                      "為任何 MP4 影片加上萌芽網頁浮水印，\n採直式浮水印，會顯示在影片右上方\n(支援格式：.mp4)"),
-                    ("WEBP 轉 MP4", self.convert_webp_to_mp4,
+                    ("🌀 WEBP 轉 MP4", self.convert_webp_to_mp4,
                      "批次處理 WEBP 轉 MP4，輸出格式為 .mp4\n(支援格式：.webp)"),
-                    ("影片重複淡化工具", self.open_video_repeat_fade_window,
+                    ("🔁 影片重複淡化工具", self.open_video_repeat_fade_window,
                      "將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)")
                 ]
             },
             {
                 "label": "🧩 其他處理",
                 "buttons": [
-                    ("字幕檔轉時間軸標記", self.sub2txt,
+                    ("📝 字幕檔轉時間軸標記", self.sub2txt,
                      "全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)"),
-                    ("航跡檔轉航點座標", self.convert_gpx_files,
+                    ("🚩 航跡檔轉航點座標", self.convert_gpx_files,
                      "全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)"),
-                    ("音訊合併", self.merge_audio,
+                    ("🎵 音訊合併", self.merge_audio,
                      "全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)"),
-                    ("文字批次取代工具", self.open_text_batch_replace_window,
+                    ("🔤 文字批次取代工具", self.open_text_batch_replace_window,
                      "批次執行文字取代規則，\n可自訂多條規則，由上至下依序處理\n每行格式如：\"A\" -> \"B\"")
                 ]
             }
@@ -684,6 +686,54 @@ class App(tk.Frame):
         for fp in file_paths:
             split_and_merge_image(fp, BUILD_DIR)
         os.startfile(BUILD_DIR)
+
+    ## 批次處理：快速圖片壓縮 ##
+
+    def batch_image_compress_with_last_config(self):
+        # 讀 config，沒設定用預設值
+        cfg = self.load_image_compress_config()
+        quality = cfg.get("imgc_quality", 85)
+        progressive = cfg.get("imgc_progressive", True)
+        overwrite = cfg.get("imgc_overwrite", True)
+
+        # 選檔
+        image_paths = filedialog.askopenfilenames(
+            title='選擇 JPG/JPEG 圖片',
+            filetypes=[("JPG/JPEG 檔案", "*.jpg *.jpeg *.JPG *.JPEG")]
+        )
+        if not image_paths:
+            messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
+            return
+
+        # 執行壓縮
+        output_files, failed = compress_images_by_cjpeg(
+            image_paths,
+            quality=quality,
+            progressive=progressive,
+            overwrite=overwrite
+        )
+
+        # 完成後的提示
+        if failed:
+            messagebox.showerror("錯誤", "部分檔案壓縮失敗：\n" +
+                                 '\n'.join(f[0] for f in failed))
+        else:
+            # 判斷輸出資料夾，直接開啟
+            if overwrite:
+                # 就是原本路徑
+                if output_files:
+                    dir_to_open = os.path.dirname(output_files[0])
+                    os.startfile(dir_to_open)
+            else:
+                # 開啟同層 output 資料夾（假設全部都同一層，選第一個）
+                if output_files:
+                    out_path = output_files[0]
+                    if os.path.sep + "output" + os.path.sep in out_path:
+                        out_dir = os.path.dirname(out_path)
+                    else:
+                        # 防呆：萬一不是 output 夾
+                        out_dir = os.path.dirname(out_path)
+                    os.startfile(out_dir)
 
     ## 批次處理：字幕檔轉時間軸標記 ##
 

@@ -8,7 +8,7 @@ def open_image_compress_window(
 ):
     subwin = tk.Toplevel(parent)
     subwin.withdraw()  # 先隱藏
-    subwin.title("圖片壓縮工具")
+    subwin.title("進階圖片壓縮")
     subwin.resizable(False, False)
     subwin.iconbitmap('icon.ico')
     width, height = 480, 380
