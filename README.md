@@ -3,10 +3,11 @@
 為快速且方便生成萌芽系列網站之萌芽七大 WP 站圖文原始碼而誕生的小程式。<br>
 自豪的使用 Python 開發，由萌芽站長與 ChatGPT 共同研究之結晶。
 
-![V1.6.0 GUI截圖](screenshot/V1.6.0.jpg)
+![V1.7.0 GUI截圖](screenshot/V1.7.0.jpg)
 
 ## 更新日誌
 
+2025/06/13：V1.7.0 主要功能頁籤新增快速批次處理功能<br>
 2025/06/12：V1.6.6 影片萌芽浮水印功能支援多執行緒批次處理<br>
 2025/06/11：V1.6.5 圖片壓縮功能切分成快速與進階，並將批次處理頁籤內所有按鈕加上圖示<br>
 2025/06/10：V1.6.4 主要功能頁籤 UI 體驗升級、子視窗元件放入 windows 子目錄<br>
@@ -64,6 +65,10 @@ pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py<br>
 start run.bat<br>
 
 ## 舊版本截圖
+
+#### V1.6.0 GUI 截圖
+
+![V1.6.0 GUI截圖](screenshot/V1.6.0.jpg)
 
 #### V1.3.2 GUI 截圖
 

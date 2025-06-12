@@ -31,9 +31,9 @@ from windows.image_compress_window import open_image_compress_window
 
 # 應用配置
 WINDOW_WIDTH = 435  # 寬度
-WINDOW_HEIGHT = 430  # 高度
+WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.6.6"  # 版本
+VERSION = "V1.7.0"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -330,6 +330,10 @@ class App(tk.Frame):
         font = tkFont.Font(family="微軟正黑體", size=13)
         style = ttk.Style()
 
+        # 主內容兩欄
+        main_content_frame = tk.Frame(self.tab1)
+        main_content_frame.pack(fill=tk.BOTH, pady=(10, 2), expand=True)
+
         # 萌芽系列網站按鈕組
         self.sites = [("💻 萌芽綜合天地", "cc"),
                       ("⛰ 萌芽爬山網", "k3"),
@@ -339,8 +343,8 @@ class App(tk.Frame):
                       ("🖼 萌芽二次元", "2d"),
                       ("🎮 萌芽Game網", "games")]
         self.site_var = tk.StringVar(value=self.sites[0][1])
-        site_frame = tk.Frame(self.tab1)
-        site_frame.pack(side=tk.LEFT, padx=10, pady=5)
+        site_frame = tk.Frame(main_content_frame)
+        site_frame.pack(side=tk.LEFT, padx=10, fill=tk.Y)
         for site, code in self.sites:
             tk.Radiobutton(site_frame, text=site, variable=self.site_var, value=code, font=font14,
                            indicatoron=False, width=15, height=1, command=self.load_last_article).pack(anchor=tk.W)
@@ -363,8 +367,8 @@ class App(tk.Frame):
                        command=lambda: self.update_checkbutton_state(self.include_symbol_down)).pack()
 
         # 年份、文章編號、文章圖片數、圖片寬度、圖片高度輸入框
-        input_frame = tk.Frame(self.tab1)
-        input_frame.pack(side=tk.RIGHT, padx=10, pady=5)
+        input_frame = tk.Frame(main_content_frame)
+        input_frame.pack(side=tk.RIGHT, padx=10, anchor='n')
         self.year_var = tk.StringVar(value=str(datetime.datetime.now().year))
         self.article_var = tk.StringVar(value="1")
         self.image_num_var = tk.StringVar(value="10")
@@ -445,9 +449,9 @@ class App(tk.Frame):
 
         # 生成圖文原始碼按鈕
         style.configure('OK.TButton', font=('微軟正黑體', 13), width=18,
-                        height=1, padding=(12, 8), background='green', borderwidth=1)
+                        height=1, padding=(12, 8), background='#008000', borderwidth=1)
         style.map('OK.TButton', foreground=[('pressed', 'black'), ('active', 'white')],
-                  background=[('pressed', 'green'), ('active', 'dark green')])
+                  background=[('pressed', "#159615"), ('active', "#065E06")])
 
         self.generate_btn = ttk.Button(
             input_frame,
@@ -455,7 +459,60 @@ class App(tk.Frame):
             style="OK.TButton",
             command=self.generate_and_show_copied
         )
-        self.generate_btn.pack(padx=1, pady=6)
+        self.generate_btn.pack(padx=1, pady=(6, 0))
+
+        # 主要功能下方快速批次處理區
+        quick_batch_frame = ttk.Labelframe(
+            self.tab1, text="🧰 快速批次處理", bootstyle="primary"
+        )
+        quick_batch_frame.pack(fill=tk.X, side=tk.BOTTOM,
+                               pady=(0, 10), padx=10)
+
+        # 內層 frame 置中三顆按鈕
+        inner_frame = tk.Frame(quick_batch_frame)
+        inner_frame.pack(pady=5)
+
+        quick_batch_buttons = [
+            {
+                "text": "⚡️ 快速圖片壓縮",
+                "cmd": self.batch_image_compress_with_last_config,
+                "tip": "批次壓縮 JPG/JPEG 圖片，\n將自動以上次「進階圖片壓縮」設定或預設值進行，\n完成自動開啟目錄\n(支援格式：.jpg、.jpeg)"
+            },
+            {
+                "text": "🌊 圖片萌芽浮水印",
+                "cmd": self.watermark_process_images,
+                "tip": "為每張圖片上萌芽網頁浮水印，\n位置會在圖片的右下角，\n輸出圖片檔案格式為 .jpg\n(支援格式：.jpg、.jpeg、.png)"
+            },
+            {
+                "text": "💧 影片萌芽浮水印",
+                "cmd": self.video_watermark,
+                "tip": "為任何 MP4 影片加上萌芽網頁浮水印，\n採直式浮水印，會顯示在影片右上方\n(支援格式：.mp4)"
+            },
+        ]
+
+        style.configure('QUICKBATCH.TButton',
+                        font=('微軟正黑體', 10),
+                        padding=(5, 5),
+                        borderwidth=1, relief='ridge',
+                        foreground="#0759b4", background="#f0f7ff")
+        style.map('QUICKBATCH.TButton',
+                  background=[('pressed', "#adb8c5"), ('active', "#ccd6e3")],
+                  foreground=[('pressed', "#4C9EF0"), ('active', '#004488')]
+                  )
+
+        # 讓三顆按鈕水平置中且等高
+        for i, btn in enumerate(quick_batch_buttons):
+            quick_btn = ttk.Button(
+                inner_frame, text=btn["text"], style='QUICKBATCH.TButton',
+                command=btn["cmd"], bootstyle="info outline"
+            )
+            quick_btn.grid(row=0, column=i, padx=5, pady=2, sticky='nsew')
+            ToolTip(quick_btn, msg=btn["tip"], delay=0.1,
+                    fg="#fff", bg="#1c1c1c", padx=10, pady=6)
+            inner_frame.grid_columnconfigure(i, weight=1)
+
+        # 讓按鈕區置中
+        inner_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
     # 確保只能選擇其中一個按鈕的功能
     def update_checkbutton_state(self, selected_var):
