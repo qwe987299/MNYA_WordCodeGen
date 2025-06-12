@@ -2,10 +2,11 @@ import os
 import ffmpeg
 import subprocess
 import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def add_video_watermark(video_paths, watermark_path, output_dir):
-    for video_path in video_paths:
+    def process_one_video(video_path):
         output_path = os.path.join(output_dir, os.path.basename(video_path))
         probe = ffmpeg.probe(video_path)
         video_stream = next(
@@ -14,7 +15,7 @@ def add_video_watermark(video_paths, watermark_path, output_dir):
             video_width = int(video_stream['width'])
         else:
             print(f"無法取得影片解析度: {video_path}")
-            continue
+            return
         watermark_width = int(video_width * 0.15)
         video_input = ffmpeg.input(video_path)
         watermark_input = ffmpeg.input(watermark_path).filter(
@@ -36,7 +37,27 @@ def add_video_watermark(video_paths, watermark_path, output_dir):
                 .output(video_overlay, output_path, vcodec="libx264", preset="medium", crf=23, pix_fmt="yuv420p")
                 .overwrite_output()
             )
-        out.run()
+        # 組合出 ffmpeg 指令行
+        cmd = out.get_args()
+        if "-y" not in cmd:
+            cmd = ["-y"] + cmd
+        ffmpeg_cmd = ["ffmpeg"] + cmd
+        subprocess.run(
+            ffmpeg_cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+
+    # 多執行緒處理
+    max_workers = min(4, os.cpu_count() or 2)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for video_path in video_paths:
+            futures.append(executor.submit(process_one_video, video_path))
+        for future in as_completed(futures):
+            future.result()  # 若有例外可在這裡捕捉
 
 
 def video_repeat_fade(
