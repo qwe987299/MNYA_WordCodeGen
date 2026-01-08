@@ -15,7 +15,7 @@ import sys
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images, compress_images_by_cjpeg
-from batch_tools.video_tools import add_video_watermark, video_repeat_fade
+from batch_tools.video_tools import add_video_watermark, video_repeat_fade, video_crop
 from batch_tools.audio_tools import merge_audio
 from batch_tools.gpx_tools import convert_gpx_files
 from batch_tools.subtitle_tools import sub2txt
@@ -25,6 +25,7 @@ from batch_tools.webp_tools import webp_to_mp4
 from windows.video_repeat_fade_window import open_video_repeat_fade_window
 from windows.text_batch_replace_window import open_text_batch_replace_window
 from windows.image_compress_window import open_image_compress_window
+from windows.video_crop_window import open_video_crop_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -33,7 +34,7 @@ from windows.image_compress_window import open_image_compress_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.0"  # 版本
+VERSION = "V1.7.1"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -96,6 +97,7 @@ class App(tk.Frame):
         self.video_repeat_fade_win = None
         self.text_batch_replace_win = None
         self.image_compress_win = None
+        self.video_crop_win = None
 
         # 儲存複製按鈕的還原任務 ID
         self._copied_btn_after_id = None
@@ -248,6 +250,23 @@ class App(tk.Frame):
         with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(config, f)
 
+    def load_video_crop_config(self):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            return config.get("video_crop", {})
+        return {}
+
+    def save_video_crop_config(self, config_dict):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            config = {}
+        config["video_crop"] = config_dict
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -317,6 +336,25 @@ class App(tk.Frame):
             save_config_func=self.save_image_compress_config,
             compress_func=compress_images_by_cjpeg,
             on_close=lambda: setattr(self, 'image_compress_win', None)
+        )
+
+    def open_video_crop_window(self):
+        if self.video_crop_win is not None:
+            try:
+                if self.video_crop_win.winfo_exists():
+                    self.video_crop_win.lift()
+                    self.video_crop_win.focus_force()
+                    return
+            except:
+                self.video_crop_win = None
+        cfg = self.load_video_crop_config()
+        self.video_crop_win = open_video_crop_window(
+            app=self,
+            parent=self.master,
+            config=cfg,
+            save_config_func=self.save_video_crop_config,
+            video_crop_func=video_crop,
+            on_close=lambda: setattr(self, 'video_crop_win', None)
         )
 
     ###############
@@ -646,7 +684,9 @@ class App(tk.Frame):
                     ("🌀 WEBP 轉 MP4", self.convert_webp_to_mp4,
                      "批次處理 WEBP 轉 MP4，輸出格式為 .mp4\n(支援格式：.webp)"),
                     ("🔁 影片重複淡化工具", self.open_video_repeat_fade_window,
-                     "將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)")
+                     "將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)"),
+                    ("✂️ 影片裁切工具", self.open_video_crop_window,
+                     "裁切影片至指定寬高，音軌將直接複製\n(支援常見影片格式)")
                 ]
             },
             {

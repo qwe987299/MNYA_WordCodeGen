@@ -159,3 +159,31 @@ def video_repeat_fade(
         pass
 
     return output_file
+
+
+def video_crop(input_path, width, height, output_dir):
+    filename = os.path.basename(input_path)
+    name, ext = os.path.splitext(filename)
+    output_path = os.path.join(output_dir, f"{name}_crop{ext}")
+
+    ffmpeg_cmd = [
+        'ffmpeg',
+        '-i', input_path,
+        '-vf', f'crop={width}:{height}',
+        '-c:a', 'copy',
+        '-y',
+        output_path
+    ]
+
+    result = subprocess.run(
+        ffmpeg_cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        creationflags=subprocess.CREATE_NO_WINDOW
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"FFmpeg error: {result.stderr}")
+
+    return output_path
