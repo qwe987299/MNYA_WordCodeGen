@@ -12,6 +12,7 @@ import webbrowser
 import datetime
 import subprocess
 import sys
+import threading
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images, compress_images_by_cjpeg
@@ -34,7 +35,7 @@ from windows.video_crop_window import open_video_crop_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.1"  # 版本
+VERSION = "V1.7.2"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -199,73 +200,52 @@ class App(tk.Frame):
             with open(self.config_path, "w") as f:
                 json.dump(config, f)
 
-    def load_repeat_fade_config(self):
+    # 通用設定讀取與儲存 helper
+    def _load_sub_config(self, key):
         if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            return config.get("video_repeat_fade", {})
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                return config.get(key, {})
+            except Exception:
+                pass
         return {}
+
+    def _save_sub_config(self, key, value):
+        config = {}
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+            except Exception:
+                pass
+        config[key] = value
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f)
+
+    def load_repeat_fade_config(self):
+        return self._load_sub_config("video_repeat_fade")
 
     def save_repeat_fade_config(self, config_dict):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-        else:
-            config = {}
-        config["video_repeat_fade"] = config_dict
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f)
+        self._save_sub_config("video_repeat_fade", config_dict)
 
     def load_text_batch_replace_config(self):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            return config.get("text_batch_replace", {})
-        return {}
+        return self._load_sub_config("text_batch_replace")
 
     def save_text_batch_replace_config(self, config_dict):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-        else:
-            config = {}
-        config["text_batch_replace"] = config_dict
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f)
+        self._save_sub_config("text_batch_replace", config_dict)
 
     def load_image_compress_config(self):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            return config.get("image_compress", {})
-        return {}
+        return self._load_sub_config("image_compress")
 
     def save_image_compress_config(self, config_dict):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-        else:
-            config = {}
-        config["image_compress"] = config_dict
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f)
+        self._save_sub_config("image_compress", config_dict)
 
     def load_video_crop_config(self):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            return config.get("video_crop", {})
-        return {}
+        return self._load_sub_config("video_crop")
 
     def save_video_crop_config(self, config_dict):
-        if os.path.exists(self.config_path):
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-        else:
-            config = {}
-        config["video_crop"] = config_dict
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f)
+        self._save_sub_config("video_crop", config_dict)
 
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
@@ -739,9 +719,21 @@ class App(tk.Frame):
         if not image_paths:
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
-        add_watermark(image_paths, "watermark.png",
-                      BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        # 使用執行緒執行耗時任務，避免卡住 UI
+        def task():
+            try:
+                self.master.config(cursor="watch")  # 游標變更為等待
+                add_watermark(image_paths, "watermark.png", BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(
+                    0, lambda: self.master.config(cursor=""))  # 恢復游標
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：影片萌芽浮水印 ##
 
@@ -754,8 +746,20 @@ class App(tk.Frame):
         if not video_paths:
             messagebox.showinfo("提示", "未選擇任何影片，此次處理結束")
             return
-        add_video_watermark(video_paths, "watermark-vertical.png", BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                add_video_watermark(
+                    video_paths, "watermark-vertical.png", BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：圖片倆倆合併 ##
 
@@ -768,8 +772,19 @@ class App(tk.Frame):
         if not image_paths:
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
-        merge_images(image_paths, BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                merge_images(image_paths, BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：圖片左右分割後上下合併 ##
 
@@ -780,9 +795,20 @@ class App(tk.Frame):
         if not file_paths:
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
-        for fp in file_paths:
-            split_and_merge_image(fp, BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                for fp in file_paths:
+                    split_and_merge_image(fp, BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：快速圖片壓縮 ##
 
@@ -802,35 +828,48 @@ class App(tk.Frame):
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
 
-        # 執行壓縮
-        output_files, failed = compress_images_by_cjpeg(
-            image_paths,
-            quality=quality,
-            progressive=progressive,
-            overwrite=overwrite
-        )
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                # 執行壓縮
+                output_files, failed = compress_images_by_cjpeg(
+                    image_paths,
+                    quality=quality,
+                    progressive=progressive,
+                    overwrite=overwrite
+                )
 
-        # 完成後的提示
-        if failed:
-            messagebox.showerror("錯誤", "部分檔案壓縮失敗：\n" +
-                                 '\n'.join(f[0] for f in failed))
-        else:
-            # 判斷輸出資料夾，直接開啟
-            if overwrite:
-                # 就是原本路徑
-                if output_files:
-                    dir_to_open = os.path.dirname(output_files[0])
-                    os.startfile(dir_to_open)
-            else:
-                # 開啟同層 output 資料夾（假設全部都同一層，選第一個）
-                if output_files:
-                    out_path = output_files[0]
-                    if os.path.sep + "output" + os.path.sep in out_path:
-                        out_dir = os.path.dirname(out_path)
+                def on_complete():
+                    # 完成後的提示
+                    if failed:
+                        messagebox.showerror("錯誤", "部分檔案壓縮失敗：\n" +
+                                             '\n'.join(f[0] for f in failed))
                     else:
-                        # 防呆：萬一不是 output 夾
-                        out_dir = os.path.dirname(out_path)
-                    os.startfile(out_dir)
+                        # 判斷輸出資料夾，直接開啟
+                        if overwrite:
+                            # 就是原本路徑
+                            if output_files:
+                                dir_to_open = os.path.dirname(output_files[0])
+                                os.startfile(dir_to_open)
+                        else:
+                            # 開啟同層 output 資料夾（假設全部都同一層，選第一個）
+                            if output_files:
+                                out_path = output_files[0]
+                                if os.path.sep + "output" + os.path.sep in out_path:
+                                    out_dir = os.path.dirname(out_path)
+                                else:
+                                    # 防呆：萬一不是 output 夾
+                                    out_dir = os.path.dirname(out_path)
+                                os.startfile(out_dir)
+
+                self.master.after(0, on_complete)
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：字幕檔轉時間軸標記 ##
 
@@ -839,8 +878,19 @@ class App(tk.Frame):
         if not files:
             messagebox.showinfo("提示", "未選擇任何字幕檔，此次處理結束")
             return
-        sub2txt(files, BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                sub2txt(files, BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：航跡檔轉航點座標 ##
 
@@ -852,8 +902,19 @@ class App(tk.Frame):
         if not file_paths:
             messagebox.showinfo("提示", "未選擇任何航跡檔，此次處理結束")
             return
-        convert_gpx_files(file_paths, BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                convert_gpx_files(file_paths, BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：音訊合併 ##
 
@@ -864,10 +925,25 @@ class App(tk.Frame):
         if len(files) < 2:
             messagebox.showinfo("提示", "未選擇兩個（含）以上的音訊檔，此次處理結束")
             return
-        output_file = merge_audio(files, BUILD_DIR)
-        if output_file:
-            messagebox.showinfo("提示", f"音訊檔案已合併，並儲存至 {output_file}")
-            os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                output_file = merge_audio(files, BUILD_DIR)
+
+                def on_complete():
+                    if output_file:
+                        messagebox.showinfo(
+                            "提示", f"音訊檔案已合併，並儲存至 {output_file}")
+                        os.startfile(BUILD_DIR)
+                self.master.after(0, on_complete)
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：圖片中心處理 ##
 
@@ -880,8 +956,19 @@ class App(tk.Frame):
         if not image_paths:
             messagebox.showinfo("提示", "未選擇任何圖片，此次處理結束")
             return
-        center_process_images(image_paths, BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                center_process_images(image_paths, BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ## 批次處理：WEBP 轉 MP4 ##
 
@@ -893,8 +980,19 @@ class App(tk.Frame):
         if not webp_files:
             messagebox.showinfo("提示", "未選擇任何 WEBP 檔案，此次處理結束")
             return
-        webp_to_mp4(webp_files, BUILD_DIR)
-        os.startfile(BUILD_DIR)
+
+        def task():
+            try:
+                self.master.config(cursor="watch")
+                webp_to_mp4(webp_files, BUILD_DIR)
+                self.master.after(0, lambda: os.startfile(BUILD_DIR))
+            except Exception as e:
+                self.master.after(
+                    0, lambda: messagebox.showerror("錯誤", str(e)))
+            finally:
+                self.master.after(0, lambda: self.master.config(cursor=""))
+
+        threading.Thread(target=task, daemon=True).start()
 
     ###############
     ### 複製取用 ###
