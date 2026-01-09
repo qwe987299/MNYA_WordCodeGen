@@ -7,6 +7,7 @@
 
 ## 更新日誌
 
+2026/01/09：V1.7.4 程式碼架構重構與優化，增強輸入驗證穩定性<br>
 2026/01/09：V1.7.3 新增程式啟動畫面，並優化多螢幕顯示位置判斷<br>
 2026/01/09：V1.7.2 全面導入多執行緒機制，解決批次處理時視窗卡頓問題，並加入處理中游標提示<br>
 2026/01/08：V1.7.1 批次處理頁籤內新增影片裁切工具<br>
@@ -103,7 +104,7 @@ start run.bat<br>
 
 # MIT License
 
-Copyright (c) 2025 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw
+Copyright (c) 2026 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

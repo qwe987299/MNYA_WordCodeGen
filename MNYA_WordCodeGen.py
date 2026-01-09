@@ -36,7 +36,7 @@ from windows.video_crop_window import open_video_crop_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.3"  # 版本
+VERSION = "V1.7.4"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -175,7 +175,7 @@ class App(tk.Frame):
         self.save_on_close()
 
         # 關閉視窗
-        root.destroy()
+        self.master.destroy()
 
     def save_on_close(self):
         with open(self.config_path, "r") as f:
@@ -261,82 +261,63 @@ class App(tk.Frame):
         new_y = y + (h - height) // 2
         child_win.geometry(f"{width}x{height}+{new_x}+{new_y}")
 
-    def open_video_repeat_fade_window(self):
-        # 檢查視窗有沒有被開啟過
-        if self.video_repeat_fade_win is not None:
+    def _open_sub_window(self, attr_name, open_func, load_config_func, save_config_func, **kwargs):
+        """通用子視窗開啟邏輯"""
+        win = getattr(self, attr_name)
+        if win is not None:
             try:
-                if self.video_repeat_fade_win.winfo_exists():
-                    self.video_repeat_fade_win.lift()
-                    self.video_repeat_fade_win.focus_force()
+                if win.winfo_exists():
+                    win.lift()
+                    win.focus_force()
                     return
             except:
-                self.video_repeat_fade_win = None
+                setattr(self, attr_name, None)
+
+        cfg = load_config_func()
         # 建立新視窗
-        cfg = self.load_repeat_fade_config()
-        self.video_repeat_fade_win = open_video_repeat_fade_window(
+        new_win = open_func(
             app=self,
             parent=self.master,
             config=cfg,
-            save_config_func=self.save_repeat_fade_config,
-            video_repeat_fade_func=video_repeat_fade,
-            on_close=lambda: setattr(self, 'video_repeat_fade_win', None)
+            save_config_func=save_config_func,
+            on_close=lambda: setattr(self, attr_name, None),
+            **kwargs
+        )
+        setattr(self, attr_name, new_win)
+
+    def open_video_repeat_fade_window(self):
+        self._open_sub_window(
+            'video_repeat_fade_win',
+            open_video_repeat_fade_window,
+            self.load_repeat_fade_config,
+            self.save_repeat_fade_config,
+            video_repeat_fade_func=video_repeat_fade
         )
 
     def open_text_batch_replace_window(self):
-        # 檢查視窗是否已開啟
-        if self.text_batch_replace_win is not None:
-            try:
-                if self.text_batch_replace_win.winfo_exists():
-                    self.text_batch_replace_win.lift()
-                    self.text_batch_replace_win.focus_force()
-                    return
-            except:
-                self.text_batch_replace_win = None
-        cfg = self.load_text_batch_replace_config()
-        self.text_batch_replace_win = open_text_batch_replace_window(
-            app=self,
-            parent=self.master,
-            config=cfg,
-            save_config_func=self.save_text_batch_replace_config,
-            on_close=lambda: setattr(self, 'text_batch_replace_win', None)
+        self._open_sub_window(
+            'text_batch_replace_win',
+            open_text_batch_replace_window,
+            self.load_text_batch_replace_config,
+            self.save_text_batch_replace_config
         )
 
     def open_image_compress_window(self):
-        if self.image_compress_win is not None:
-            try:
-                if self.image_compress_win.winfo_exists():
-                    self.image_compress_win.lift()
-                    self.image_compress_win.focus_force()
-                    return
-            except:
-                self.image_compress_win = None
-        cfg = self.load_image_compress_config()
-        self.image_compress_win = open_image_compress_window(
-            app=self,
-            parent=self.master,
-            config=cfg,
-            save_config_func=self.save_image_compress_config,
-            compress_func=compress_images_by_cjpeg,
-            on_close=lambda: setattr(self, 'image_compress_win', None)
+        self._open_sub_window(
+            'image_compress_win',
+            open_image_compress_window,
+            self.load_image_compress_config,
+            self.save_image_compress_config,
+            compress_func=compress_images_by_cjpeg
         )
 
     def open_video_crop_window(self):
-        if self.video_crop_win is not None:
-            try:
-                if self.video_crop_win.winfo_exists():
-                    self.video_crop_win.lift()
-                    self.video_crop_win.focus_force()
-                    return
-            except:
-                self.video_crop_win = None
-        cfg = self.load_video_crop_config()
-        self.video_crop_win = open_video_crop_window(
-            app=self,
-            parent=self.master,
-            config=cfg,
-            save_config_func=self.save_video_crop_config,
-            video_crop_func=video_crop,
-            on_close=lambda: setattr(self, 'video_crop_win', None)
+        self._open_sub_window(
+            'video_crop_win',
+            open_video_crop_window,
+            self.load_video_crop_config,
+            self.save_video_crop_config,
+            video_crop_func=video_crop
         )
 
     ###############
@@ -558,7 +539,11 @@ class App(tk.Frame):
         site_code = self.site_var.get()
         year = self.year_var.get()
         article = self.article_var.get()
-        image_num = int(self.image_num_var.get())
+        try:
+            image_num = int(self.image_num_var.get())
+        except ValueError:
+            messagebox.showerror("輸入錯誤", "文章圖片數必須為整數")
+            return
         image_width = self.image_width_var.get()
         image_height = self.image_height_var.get()
 
@@ -1043,9 +1028,9 @@ class App(tk.Frame):
             new_button.grid(row=i//6, column=i % 6, padx=1, pady=1)
 
     def copy_text(self, text):
-        root.clipboard_clear()  # 清除剪貼板內容
-        root.clipboard_append(text)  # 將指定文字添加到剪貼板
-        root.update()  # 強制更新 tkinter 的 GUI 介面
+        self.master.clipboard_clear()  # 清除剪貼板內容
+        self.master.clipboard_append(text)  # 將指定文字添加到剪貼板
+        self.master.update()  # 強制更新 tkinter 的 GUI 介面
 
     ###############
     ### 快速連結 ###
@@ -1192,7 +1177,7 @@ class App(tk.Frame):
             "\n ■ 更新日誌 ■ \n" \
             "\n" + changelog + "\n" \
             "\n ■ MIT License ■ \n" \
-            "\nCopyright (c) 2025 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
+            "\nCopyright (c) 2026 Feng, Cheng-Chi (萌芽站長) @ 萌芽系列網站 ‧ Mnya Series Website ‧ Mnya.tw\n" \
             "\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n" \
             "\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n" \
             "\nTHE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n"
