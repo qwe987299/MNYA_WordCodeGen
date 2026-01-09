@@ -13,6 +13,7 @@ import datetime
 import subprocess
 import sys
 import threading
+import time
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images, compress_images_by_cjpeg
@@ -35,7 +36,7 @@ from windows.video_crop_window import open_video_crop_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.2"  # 版本
+VERSION = "V1.7.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -53,11 +54,12 @@ class App(tk.Frame):
         self.load_window_position()
 
         # 設置視窗大小和位置
-        root.geometry(
+        self.master.geometry(
             f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{self.window_x}+{self.window_y}")
+        self.master.minsize(WINDOW_WIDTH, WINDOW_HEIGHT)
 
         # 設置關閉視窗時的回調函數
-        root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.master.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.tabControl = ttk.Notebook(self)
         # 頁籤 1
@@ -90,9 +92,6 @@ class App(tk.Frame):
         self.links_widgets()
         self.setting_widgets()
         self.about_widgets()
-
-        # 設定視窗的最小化狀態
-        self.master.after(1, self.minimized)
 
         # 限制子視窗只能同時一個
         self.video_repeat_fade_win = None
@@ -129,11 +128,6 @@ class App(tk.Frame):
         self.generate_btn.config(text=old_text)
         self._copied_btn_after_id = None
 
-    # 視窗最小化功能
-    def minimized(self):
-        if self.is_minimized.get():
-            self.master.iconify()
-
     def load_window_position(self):
         # 如果配置檔案存在，讀取視窗位置
         if os.path.exists(self.config_path):
@@ -150,23 +144,29 @@ class App(tk.Frame):
 
         # 獲取所有顯示器的資訊
         monitors = win32api.EnumDisplayMonitors()
-        max_x = 0
-        max_y = 0
+
+        # 初始化邊界值 (使用第一個螢幕的資訊作為基準)
+        if monitors:
+            info = win32api.GetMonitorInfo(monitors[0][0])["Work"]
+            min_x, min_y, max_x, max_y = info[0], info[1], info[2], info[3]
+        else:
+            min_x, min_y, max_x, max_y = 0, 0, 1920, 1080
+
         for monitor in monitors:
             monitor_info = win32api.GetMonitorInfo(monitor[0])
             work_area = monitor_info["Work"]
-            if work_area[2] > max_x:
-                max_x = work_area[2]
-            if work_area[3] > max_y:
-                max_y = work_area[3]
+            min_x = min(min_x, work_area[0])
+            min_y = min(min_y, work_area[1])
+            max_x = max(max_x, work_area[2])
+            max_y = max(max_y, work_area[3])
 
         # 確保視窗位置在所有顯示器範圍內
-        if self.window_x < 0:
-            self.window_x = 0
+        if self.window_x < min_x:
+            self.window_x = min_x
         elif self.window_x > max_x - WINDOW_WIDTH:
             self.window_x = max_x - WINDOW_WIDTH
-        if self.window_y < 0:
-            self.window_y = 0
+        if self.window_y < min_y:
+            self.window_y = min_y
         elif self.window_y > max_y - WINDOW_HEIGHT:
             self.window_y = max_y - WINDOW_HEIGHT
 
@@ -181,8 +181,10 @@ class App(tk.Frame):
         with open(self.config_path, "r") as f:
             config = json.load(f)
             # 更新需要修改的鍵值
-            config["x"] = root.winfo_x()
-            config["y"] = root.winfo_y()
+            # 避免在最小化狀態下儲存座標 (會變成 -32000)
+            if self.master.state() != 'iconic':
+                config["x"] = self.master.winfo_x()
+                config["y"] = self.master.winfo_y()
 
             # 保存到配置檔案
             with open(self.config_path, "w") as f:
@@ -192,8 +194,8 @@ class App(tk.Frame):
         # 如果配置檔案不存在，使用預設值
         if not os.path.exists(self.config_path):
             config = {
-                "x": root.winfo_x(),
-                "y": root.winfo_y(),
+                "x": self.master.winfo_x(),
+                "y": self.master.winfo_y(),
                 "is_minimized": False
             }
             # 保存全新配置檔
@@ -1205,15 +1207,66 @@ if __name__ == "__main__":
         os.makedirs(BUILD_DIR)
 
     root = tk.Tk()
+
+    # --- 啟動畫面 (Splash Screen) ---
+    splash = tk.Toplevel(root)
+    splash.overrideredirect(True)
+    splash.attributes('-topmost', True)
+    splash_w, splash_h = 450, 260
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+    x_loc = (screen_w - splash_w) // 2
+    y_loc = (screen_h - splash_h) // 2
+
+    # 嘗試讀取設定檔，若有上次位置則計算相對應的中心點，讓 Splash 跟隨主視窗出現的螢幕
+    try:
+        if os.path.exists(CONFIG_FILENAME):
+            with open(CONFIG_FILENAME, "r") as f:
+                config = json.load(f)
+                last_x = config.get("x")
+                last_y = config.get("y")
+                if last_x is not None and last_y is not None:
+                    # 計算公式：主視窗左上角 + (主視窗寬 - Splash寬)/2
+                    x_loc = int(last_x + (WINDOW_WIDTH - splash_w) / 2)
+                    y_loc = int(last_y + (WINDOW_HEIGHT - splash_h) / 2)
+    except Exception:
+        pass
+
+    splash.geometry(f"{splash_w}x{splash_h}+{x_loc}+{y_loc}")
+
+    splash_img = None
+    try:
+        splash.configure(bg='#2b3e50')
+        tk.Label(splash, text=APP_NAME, font=("微軟正黑體", 18, "bold"),
+                 fg="white", bg='#2b3e50', wraplength=400).pack(expand=True)
+        tk.Label(splash, text=f"{VERSION}\n正在啟動...", font=(
+            "微軟正黑體", 10), fg="#cccccc", bg='#2b3e50').pack(side="bottom", pady=20)
+    except Exception:
+        pass
+    splash.update()
+    # -------------------------------
+
     root.withdraw()  # 先隱藏
+
+    # 載入延遲，避免畫面閃爍，提升體驗
+    time.sleep(0.1)
+
     style = ttk.Style("superhero")
     root.title(APP_NAME)
-    root.geometry("{}x{}".format(WINDOW_WIDTH, WINDOW_HEIGHT))
-    root.minsize(WINDOW_WIDTH, WINDOW_HEIGHT)
     try:
         root.iconbitmap('icon.ico')
     except Exception:
         pass
     app = App(master=root)
-    root.deiconify()  # 再顯示
+    splash.destroy()  # 關閉啟動畫面
+
+    # 重新設定幾何位置，確保在 deiconify 前生效 (解決 withdraw 後 geometry 失效問題)
+    root.geometry(
+        f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{app.window_x}+{app.window_y}")
+    root.update_idletasks()  # 強制更新狀態，確保 geometry 設定被套用
+
+    if app.is_minimized.get():
+        root.iconify()  # 直接最小化，避免視窗閃現
+    else:
+        root.deiconify()  # 再顯示
     app.mainloop()
