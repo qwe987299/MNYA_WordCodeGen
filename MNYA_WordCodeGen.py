@@ -22,12 +22,14 @@ from batch_tools.audio_tools import merge_audio
 from batch_tools.gpx_tools import convert_gpx_files
 from batch_tools.subtitle_tools import sub2txt
 from batch_tools.webp_tools import webp_to_mp4
+from batch_tools.gpx_slope_tool import generate_slope_chart
 
 # 子視窗
 from windows.video_repeat_fade_window import open_video_repeat_fade_window
 from windows.text_batch_replace_window import open_text_batch_replace_window
 from windows.image_compress_window import open_image_compress_window
 from windows.video_crop_window import open_video_crop_window
+from windows.gpx_slope_window import open_gpx_slope_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -36,7 +38,7 @@ from windows.video_crop_window import open_video_crop_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.4"  # 版本
+VERSION = "V1.7.5"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -98,6 +100,7 @@ class App(tk.Frame):
         self.text_batch_replace_win = None
         self.image_compress_win = None
         self.video_crop_win = None
+        self.gpx_slope_win = None
 
         # 儲存複製按鈕的還原任務 ID
         self._copied_btn_after_id = None
@@ -249,6 +252,12 @@ class App(tk.Frame):
     def save_video_crop_config(self, config_dict):
         self._save_sub_config("video_crop", config_dict)
 
+    def load_gpx_slope_config(self):
+        return self._load_sub_config("gpx_slope")
+
+    def save_gpx_slope_config(self, config_dict):
+        self._save_sub_config("gpx_slope", config_dict)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -318,6 +327,15 @@ class App(tk.Frame):
             self.load_video_crop_config,
             self.save_video_crop_config,
             video_crop_func=video_crop
+        )
+
+    def open_gpx_slope_window(self):
+        self._open_sub_window(
+            'gpx_slope_win',
+            open_gpx_slope_window,
+            self.load_gpx_slope_config,
+            self.save_gpx_slope_config,
+            generate_func=generate_slope_chart
         )
 
     ###############
@@ -659,10 +677,12 @@ class App(tk.Frame):
             {
                 "label": "🧩 其他處理",
                 "buttons": [
-                    ("📝 字幕檔轉時間軸標記", self.sub2txt,
-                     "全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)"),
                     ("🚩 航跡檔轉航點座標", self.convert_gpx_files,
                      "全自動批次 GPX 航跡檔轉換為航點座標\n(支援格式：.gpx)"),
+                    ("📈 航跡檔轉坡度分析圖", self.open_gpx_slope_window,
+                     "將 GPX 航跡檔轉換為坡度分析圖，\n可自訂寬高、解析度與採樣間距\n(支援格式：.gpx)"),
+                    ("📝 字幕檔轉時間軸標記", self.sub2txt,
+                     "全自動批次 SRT 字幕檔轉換為 TXT 時間軸標記\n(支援格式：.srt)"),
                     ("🎵 音訊合併", self.merge_audio,
                      "全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)"),
                     ("🔤 文字批次取代工具", self.open_text_batch_replace_window,
