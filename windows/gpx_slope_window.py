@@ -13,7 +13,7 @@ def open_gpx_slope_window(app, parent, config, save_config_func, on_close, gener
         subwin.iconbitmap('icon.ico')
     except tk.TclError:
         pass  # icon.ico not found
-    width, height = 500, 320
+    width, height = 500, 350
     subwin.transient(parent)
     subwin.lift()
     subwin.focus_force()
@@ -72,6 +72,13 @@ def open_gpx_slope_window(app, parent, config, save_config_func, on_close, gener
     entry_interval = add_param_row('採樣間距 (m)', "INTERVAL_M", "200")
     entry_bg_color = add_param_row('背景顏色', "BG_COLOR", "#F5F5F5")
 
+    # 標記航點 checkbox
+    var_mark_waypoints = tk.BooleanVar(value=config.get("MARK_WAYPOINTS", False))
+    chk_mark_waypoints = tk.Checkbutton(frame, text="標記航點", variable=var_mark_waypoints, font=font_label)
+    chk_mark_waypoints.grid(row=row, column=0, columnspan=2, sticky='w', pady=5)
+    row += 1
+
+
     # 開始執行按鈕與狀態
     btn_run = tk.Button(frame, text='開始執行', width=18, height=2, font=font_btn)
     btn_run.grid(row=row, column=0, columnspan=3, pady=20)
@@ -94,7 +101,8 @@ def open_gpx_slope_window(app, parent, config, save_config_func, on_close, gener
             "HEIGHT_PX": entry_height.get().strip(),
             "DPI": entry_dpi.get().strip(),
             "INTERVAL_M": entry_interval.get().strip(),
-            "BG_COLOR": entry_bg_color.get().strip()
+            "BG_COLOR": entry_bg_color.get().strip(),
+            "MARK_WAYPOINTS": var_mark_waypoints.get()
         }
         save_config_func(new_config)
 
