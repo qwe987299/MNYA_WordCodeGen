@@ -187,3 +187,65 @@ def video_crop(input_path, width, height, output_dir):
         raise RuntimeError(f"FFmpeg error: {result.stderr}")
 
     return output_path
+
+
+def video_add_bgm(video_path, audio_paths, output_dir, fade_in, fade_out):
+    filename = os.path.basename(video_path)
+    name, _ = os.path.splitext(filename)
+    output_path = os.path.join(output_dir, f"{name}_bgm.mp4")
+
+    # 1. 取得影片長度
+    probe = ffmpeg.probe(video_path)
+    video_duration = float(probe['format']['duration'])
+
+    # 2. 構建 FFmpeg 指令
+    # 輸入：影片 + 多個音訊
+    inputs = [ffmpeg.input(video_path)]
+    for ap in audio_paths:
+        inputs.append(ffmpeg.input(ap))
+
+    # 音訊過濾器：合併 -> 修剪 -> 淡入 -> 淡出
+    n_audio = len(audio_paths)
+    if n_audio > 1:
+        # 合併音訊
+        audio_nodes = [inputs[i+1].audio for i in range(n_audio)]
+        joined = ffmpeg.concat(*audio_nodes, v=0, a=1)
+    else:
+        joined = inputs[1].audio
+
+    # 修剪與淡化
+    # OUT_START = max(0, video_duration - fade_out)
+    out_start = max(0, video_duration - fade_out)
+    
+    # 這裡使用 aformat 確保採樣率一致，避免合併問題
+    audio_proc = (
+        joined
+        .filter('atrim', duration=video_duration)
+        .filter('afade', type='in', start_time=0, duration=fade_in)
+        .filter('afade', type='out', start_time=out_start, duration=fade_out)
+    )
+
+    # 輸出：保留影片影像，替換為處理後的音訊
+    out = (
+        ffmpeg
+        .output(inputs[0].video, audio_proc, output_path, vcodec="copy", acodec="aac", strict='experimental')
+        .overwrite_output()
+    )
+
+    cmd = out.get_args()
+    if "-y" not in cmd:
+        cmd = ["-y"] + cmd
+    ffmpeg_cmd = ["ffmpeg"] + cmd
+    
+    result = subprocess.run(
+        ffmpeg_cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        creationflags=subprocess.CREATE_NO_WINDOW
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"FFmpeg error: {result.stderr}")
+
+    return output_path

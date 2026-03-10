@@ -17,7 +17,7 @@ import time
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images, compress_images_by_cjpeg
-from batch_tools.video_tools import add_video_watermark, video_repeat_fade, video_crop
+from batch_tools.video_tools import add_video_watermark, video_repeat_fade, video_crop, video_add_bgm
 from batch_tools.audio_tools import merge_audio
 from batch_tools.gpx_tools import convert_gpx_files
 from batch_tools.subtitle_tools import sub2txt
@@ -30,6 +30,7 @@ from windows.text_batch_replace_window import open_text_batch_replace_window
 from windows.image_compress_window import open_image_compress_window
 from windows.video_crop_window import open_video_crop_window
 from windows.gpx_slope_window import open_gpx_slope_window
+from windows.video_bgm_window import open_video_bgm_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -38,7 +39,7 @@ from windows.gpx_slope_window import open_gpx_slope_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.6"  # 版本
+VERSION = "V1.7.7"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -101,6 +102,7 @@ class App(tk.Frame):
         self.image_compress_win = None
         self.video_crop_win = None
         self.gpx_slope_win = None
+        self.video_bgm_win = None
 
         # 儲存複製按鈕的還原任務 ID
         self._copied_btn_after_id = None
@@ -258,6 +260,12 @@ class App(tk.Frame):
     def save_gpx_slope_config(self, config_dict):
         self._save_sub_config("gpx_slope", config_dict)
 
+    def load_video_bgm_config(self):
+        return self._load_sub_config("video_bgm")
+
+    def save_video_bgm_config(self, config_dict):
+        self._save_sub_config("video_bgm", config_dict)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -336,6 +344,15 @@ class App(tk.Frame):
             self.load_gpx_slope_config,
             self.save_gpx_slope_config,
             generate_func=generate_slope_chart
+        )
+
+    def open_video_bgm_window(self):
+        self._open_sub_window(
+            'video_bgm_win',
+            open_video_bgm_window,
+            self.load_video_bgm_config,
+            self.save_video_bgm_config,
+            video_add_bgm_func=video_add_bgm
         )
 
     ###############
@@ -671,7 +688,9 @@ class App(tk.Frame):
                     ("🔁 影片重複淡化工具", self.open_video_repeat_fade_window,
                      "將影片重複淡入淡出並串接為指定長度，支援自訂淡化秒數與輸出解析度\n(支援格式：.mp4、.mov、.avi、.mkv、.webm、.flv)"),
                     ("✂️ 影片裁切工具", self.open_video_crop_window,
-                     "裁切影片至指定寬高，音軌將直接複製\n(支援常見影片格式)")
+                     "裁切影片至指定寬高，音軌將直接複製\n(支援常見影片格式)"),
+                    ("🎵 影片背景音樂", self.open_video_bgm_window,
+                     "為影片加入背景音樂，支援多個音樂檔合併、\n自動剪裁、以及片頭片尾淡入淡出效果\n(支援格式：.mp4)")
                 ]
             },
             {
