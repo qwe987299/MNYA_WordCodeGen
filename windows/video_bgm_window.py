@@ -21,7 +21,7 @@ def open_video_bgm_window(app, parent, config, save_config_func, video_add_bgm_f
     subwin.title("影片背景音樂工具")
     subwin.resizable(False, False)
     subwin.iconbitmap('icon.ico')
-    width, height = 600, 380
+    width, height = 600, 400
     subwin.transient(parent)
     subwin.lift()
     subwin.focus_force()
