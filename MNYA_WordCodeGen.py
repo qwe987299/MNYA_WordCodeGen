@@ -39,7 +39,7 @@ from windows.video_bgm_window import open_video_bgm_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.7"  # 版本
+VERSION = "V1.7.8"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱

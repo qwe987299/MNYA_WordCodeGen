@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import os
 import threading
 import ffmpeg
+import pyperclip
 
 def get_duration(file_path):
     try:
@@ -122,9 +123,29 @@ def open_video_bgm_window(app, parent, config, save_config_func, video_add_bgm_f
         music_dur[0] = d
         update_dur_display()
 
+    def copy_audio_list():
+        selected_indices = listbox_audio.curselection()
+        if selected_indices:
+            # 獲取選取的項目
+            items = [listbox_audio.get(i) for i in selected_indices]
+        else:
+            # 若無選取，獲取全部
+            items = list(listbox_audio.get(0, tk.END))
+            
+        if not items:
+            label_status.config(text="音樂列表為空", fg="red")
+            return
+            
+        # 只取檔名、移除副檔名並串接
+        filenames = [os.path.splitext(os.path.basename(f))[0] for f in items]
+        result = "｜".join(filenames)
+        pyperclip.copy(result)
+        label_status.config(text="已將檔名列表複製到剪貼簿", fg="#6cb2eb")
+
     audio_btn_frame = tk.Frame(frame, bg='#f4f4f7')
     audio_btn_frame.grid(row=row, column=2, sticky='n', pady=5)
     tk.Button(audio_btn_frame, text='增加音樂', command=select_audio, font=font_btn).pack(fill='x', pady=2)
+    tk.Button(audio_btn_frame, text='複製列表', command=copy_audio_list, font=font_btn).pack(fill='x', pady=2)
     tk.Button(audio_btn_frame, text='清空列表', command=clear_audio, font=font_btn).pack(fill='x', pady=2)
     row += 1
 
