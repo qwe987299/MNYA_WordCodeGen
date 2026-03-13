@@ -31,6 +31,7 @@ from windows.image_compress_window import open_image_compress_window
 from windows.video_crop_window import open_video_crop_window
 from windows.gpx_slope_window import open_gpx_slope_window
 from windows.video_bgm_window import open_video_bgm_window
+from windows.youtube_thumbnail_window import open_youtube_thumbnail_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -39,7 +40,7 @@ from windows.video_bgm_window import open_video_bgm_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.7.8"  # 版本
+VERSION = "V1.8.0"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -73,10 +74,13 @@ class App(tk.Frame):
         self.tabControl.add(self.tab2, text='批次處理')
         # 頁籤 3
         self.tab3 = ttk.Frame(self.tabControl)
-        self.tabControl.add(self.tab3, text='複製取用')
+        self.tabControl.add(self.tab3, text='網路工具')
         # 頁籤 4
         self.tab4 = ttk.Frame(self.tabControl)
-        self.tabControl.add(self.tab4, text='快速連結')
+        self.tabControl.add(self.tab4, text='複製取用')
+        # 頁籤 5
+        self.tab5 = ttk.Frame(self.tabControl)
+        self.tabControl.add(self.tab5, text='快速連結')
         # 設定頁籤
         self.tabSet = ttk.Frame(self.tabControl)
         self.tabControl.add(self.tabSet, text='設定')
@@ -91,6 +95,7 @@ class App(tk.Frame):
         self.create_widgets()
         self.load_last_article()
         self.batch_widgets()
+        self.network_widgets()
         self.copy_widgets()
         self.links_widgets()
         self.setting_widgets()
@@ -103,6 +108,7 @@ class App(tk.Frame):
         self.video_crop_win = None
         self.gpx_slope_win = None
         self.video_bgm_win = None
+        self.yt_thumbnail_win = None
 
         # 儲存複製按鈕的還原任務 ID
         self._copied_btn_after_id = None
@@ -266,6 +272,12 @@ class App(tk.Frame):
     def save_video_bgm_config(self, config_dict):
         self._save_sub_config("video_bgm", config_dict)
 
+    def load_yt_thumbnail_config(self):
+        return self._load_sub_config("yt_thumbnail")
+
+    def save_yt_thumbnail_config(self, config_dict):
+        self._save_sub_config("yt_thumbnail", config_dict)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -353,6 +365,14 @@ class App(tk.Frame):
             self.load_video_bgm_config,
             self.save_video_bgm_config,
             video_add_bgm_func=video_add_bgm
+        )
+
+    def open_youtube_thumbnail_window(self):
+        self._open_sub_window(
+            'yt_thumbnail_win',
+            open_youtube_thumbnail_window,
+            self.load_yt_thumbnail_config,
+            self.save_yt_thumbnail_config
         )
 
     ###############
@@ -1021,6 +1041,68 @@ class App(tk.Frame):
         threading.Thread(target=task, daemon=True).start()
 
     ###############
+    ### 網路工具 ###
+    ###############
+
+    def network_widgets(self):
+        style = ttk.Style()
+        style.configure('NET.TButton', font=(
+            '微軟正黑體', 12), borderwidth=1, padding=10, relief='ridge')
+        style.map('NET.TButton', background=[
+            ('pressed', '#1C83E8'), ('active', '#71A9E0')])
+
+        # 清空 widget
+        for widget in self.tab3.winfo_children():
+            widget.destroy()
+
+        # 建立一個 Canvas，設定為可捲動的
+        canvas = tk.Canvas(self.tab3, borderwidth=0, highlightthickness=0)
+        canvas.pack(side='left', fill='both', expand=True)
+
+        # 在 Canvas 上建立一個 Frame，用來放置內容
+        inner_frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=inner_frame, anchor='nw', tags='inner_frame')
+
+        # 建立垂直捲軸
+        scrollbar = tk.Scrollbar(
+            self.tab3, orient='vertical', command=canvas.yview)
+        scrollbar.pack(side='right', fill='y')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # 讓 inner_frame 寬度隨 canvas 寬度自動同步
+        def resize_inner_frame(event):
+            canvas_width = event.width
+            canvas.itemconfig('inner_frame', width=canvas_width)
+        canvas.bind("<Configure>", resize_inner_frame)
+
+        # 設定 Canvas 的捲動範圍
+        inner_frame.bind('<Configure>', lambda e: canvas.configure(
+            scrollregion=canvas.bbox('all')))
+
+        # 設定捲動事件
+        def on_canvas_mousewheel(event):
+            canvas.yview_scroll(-1 * int(event.delta/120), 'units')
+        canvas.bind('<Enter>', lambda e: canvas.bind_all(
+            '<MouseWheel>', on_canvas_mousewheel))
+        canvas.bind('<Leave>', lambda e: canvas.unbind_all('<MouseWheel>'))
+
+        # 影音工具分組
+        media_group = ttk.Labelframe(inner_frame, text="🎬 影音工具", bootstyle="primary")
+        media_group.pack(fill='x', padx=10, pady=5)
+
+        yt_btn = ttk.Button(
+            media_group,
+            text="📸 YouTube 縮圖下載器",
+            style="NET.TButton",
+            command=self.open_youtube_thumbnail_window,
+            bootstyle="secondary outline"
+        )
+        yt_btn.pack(fill='x', padx=10, pady=10)
+        
+        ToolTip(yt_btn, msg="輸入 YouTube 網址或 ID，自動取得最高畫質縮圖", delay=0.2, 
+                fg="#fff", bg="#1c1c1c", padx=8, pady=5)
+
+    ###############
     ### 複製取用 ###
     ###############
 
@@ -1028,7 +1110,7 @@ class App(tk.Frame):
         font = tkFont.Font(family="微軟正黑體", size=13)
 
         # 建立一個 Canvas，設定為可捲動的
-        canvas = tk.Canvas(self.tab3)
+        canvas = tk.Canvas(self.tab4)
         canvas.pack(side='left', fill='both', expand=True)
 
         # 在 Canvas 上建立一個 Frame，用來放置按鈕
@@ -1036,7 +1118,7 @@ class App(tk.Frame):
 
         # 把 Frame 放進 Scrollbar 裡面
         scrollbar = tk.Scrollbar(
-            self.tab3, orient='vertical', command=canvas.yview)
+            self.tab4, orient='vertical', command=canvas.yview)
         scrollbar.pack(side='right', fill='y')
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.create_window((0, 0), window=button_frame, anchor='nw')
@@ -1079,7 +1161,7 @@ class App(tk.Frame):
         font = tkFont.Font(family="微軟正黑體", size=14)
 
         # 建立一個 Canvas，設定為可捲動的
-        canvas = tk.Canvas(self.tab4)
+        canvas = tk.Canvas(self.tab5)
         canvas.pack(side='left', fill='both', expand=True)
 
         # 在 Canvas 上建立一個 Frame，用來放置按鈕
@@ -1087,7 +1169,7 @@ class App(tk.Frame):
 
         # 把 Frame 放進 Scrollbar 裡面
         scrollbar = tk.Scrollbar(
-            self.tab4, orient='vertical', command=canvas.yview)
+            self.tab5, orient='vertical', command=canvas.yview)
         scrollbar.pack(side='right', fill='y')
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.create_window((0, 0), window=button_frame, anchor='nw')
