@@ -23,6 +23,7 @@ from batch_tools.gpx_tools import convert_gpx_files
 from batch_tools.subtitle_tools import sub2txt
 from batch_tools.webp_tools import webp_to_mp4
 from batch_tools.gpx_slope_tool import generate_slope_chart
+from batch_tools.pdf_tools import decrypt_pdf_files
 
 # 子視窗
 from windows.video_repeat_fade_window import open_video_repeat_fade_window
@@ -32,6 +33,7 @@ from windows.video_crop_window import open_video_crop_window
 from windows.gpx_slope_window import open_gpx_slope_window
 from windows.video_bgm_window import open_video_bgm_window
 from windows.youtube_thumbnail_window import open_youtube_thumbnail_window
+from windows.pdf_decrypt_window import open_pdf_decrypt_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -40,7 +42,7 @@ from windows.youtube_thumbnail_window import open_youtube_thumbnail_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.8.0"  # 版本
+VERSION = "V1.8.1"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -109,6 +111,7 @@ class App(tk.Frame):
         self.gpx_slope_win = None
         self.video_bgm_win = None
         self.yt_thumbnail_win = None
+        self.pdf_decrypt_win = None
 
         # 儲存複製按鈕的還原任務 ID
         self._copied_btn_after_id = None
@@ -278,6 +281,12 @@ class App(tk.Frame):
     def save_yt_thumbnail_config(self, config_dict):
         self._save_sub_config("yt_thumbnail", config_dict)
 
+    def load_pdf_decrypt_config(self):
+        return self._load_sub_config("pdf_decrypt")
+
+    def save_pdf_decrypt_config(self, config_dict):
+        self._save_sub_config("pdf_decrypt", config_dict)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -373,6 +382,15 @@ class App(tk.Frame):
             open_youtube_thumbnail_window,
             self.load_yt_thumbnail_config,
             self.save_yt_thumbnail_config
+        )
+
+    def open_pdf_decrypt_window(self):
+        self._open_sub_window(
+            'pdf_decrypt_win',
+            open_pdf_decrypt_window,
+            self.load_pdf_decrypt_config,
+            self.save_pdf_decrypt_config,
+            decrypt_pdf_func=decrypt_pdf_files
         )
 
     ###############
@@ -725,7 +743,9 @@ class App(tk.Frame):
                     ("🎵 音訊合併", self.merge_audio,
                      "全自動音訊檔合併，輸出規格為 MP3 320kbps\n(支援格式：.mp3、.wav)"),
                     ("🔤 文字批次取代工具", self.open_text_batch_replace_window,
-                     "批次執行文字取代規則，\n可自訂多條規則，由上至下依序處理\n每行格式如：\"A\" -> \"B\"")
+                     "批次執行文字取代規則，\n可自訂多條規則，由上至下依序處理\n每行格式如：\"A\" -> \"B\""),
+                    ("🔓 解密 PDF 工具", self.open_pdf_decrypt_window,
+                     "批次解密多個 PDF 檔案，支援多個密碼嘗試與平行加速處理\n(支援格式：.pdf)")
                 ]
             }
         ]
@@ -1308,6 +1328,8 @@ class App(tk.Frame):
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
 
     if not os.path.exists(BUILD_DIR):
         os.makedirs(BUILD_DIR)
