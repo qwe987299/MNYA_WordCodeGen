@@ -2,6 +2,8 @@ import os
 import ffmpeg
 import subprocess
 import math
+import re
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -249,3 +251,108 @@ def video_add_bgm(video_path, audio_paths, output_dir, fade_in, fade_out):
         raise RuntimeError(f"FFmpeg error: {result.stderr}")
 
     return output_path
+
+
+def read_text_file(filepath):
+    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'utf-16-le', 'cp950', 'gbk', 'latin-1']:
+        try:
+            with open(filepath, 'r', encoding=enc) as f:
+                return f.read()
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    with open(filepath, 'r', errors='ignore') as f:
+        return f.read()
+
+
+def extract_subtitles_start_times(file_path):
+    content = read_text_file(file_path)
+    # 1. SRT / VTT 格式 (例如 00:01:23,456 --> 00:01:25,789)
+    pattern_srt = re.compile(
+        r'(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3})'
+    )
+    times = []
+    for match in pattern_srt.finditer(content):
+        h = int(match.group(1)) if match.group(1) else 0
+        m = int(match.group(2))
+        s = int(match.group(3))
+        ms = int(match.group(4).ljust(3, '0')[:3])
+        times.append((h * 3600 + m * 60 + s) * 1000 + ms)
+
+    if not times:
+        # 2. ASS / SSA 格式
+        pattern_ass = re.compile(
+            r'Dialogue:\s*[^,]*,\s*(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})'
+        )
+        for match in pattern_ass.finditer(content):
+            h = int(match.group(1)) if match.group(1) else 0
+            m = int(match.group(2))
+            s = int(match.group(3))
+            ms = int(match.group(4).ljust(3, '0')[:3])
+            times.append((h * 3600 + m * 60 + s) * 1000 + ms)
+
+    # 去除重複時間點並排序
+    seen = set()
+    unique_times = []
+    for t in times:
+        if t not in seen:
+            seen.add(t)
+            unique_times.append(t)
+    unique_times.sort()
+    return unique_times
+
+
+def capture_video_subtitles_screenshots(video_path, subtitle_path, offset_ms, output_dir, progress_callback=None):
+    start_times = extract_subtitles_start_times(subtitle_path)
+    if not start_times:
+        raise ValueError("無法從字幕檔案中讀取到任何時間軸資訊，請確認字幕格式是否正確！")
+
+    os.makedirs(output_dir, exist_ok=True)
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
+    total = len(start_times)
+    pad = max(3, len(str(total)))
+
+    tasks = []
+    for idx, start_ms in enumerate(start_times, start=1):
+        target_ms = max(0.0, start_ms + offset_ms)
+        target_sec = target_ms / 1000.0
+        out_filename = f"{video_name}_{idx:0{pad}d}.jpg"
+        out_filepath = os.path.join(output_dir, out_filename)
+        tasks.append((idx, target_sec, out_filepath))
+
+    completed_count = 0
+    lock = threading.Lock()
+
+    def process_one(task_info):
+        nonlocal completed_count
+        idx, target_sec, out_filepath = task_info
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-ss', f"{target_sec:.3f}",
+            '-i', video_path,
+            '-frames:v', '1',
+            '-q:v', '2',
+            '-y',
+            out_filepath
+        ]
+        result = subprocess.run(
+            ffmpeg_cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"截圖失敗 (第 {idx} 張，時間 {target_sec:.3f}s)：{result.stderr}")
+
+        with lock:
+            completed_count += 1
+            if progress_callback:
+                progress_callback(completed_count, total)
+
+    max_workers = min(4, os.cpu_count() or 2)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_one, t) for t in tasks]
+        for future in as_completed(futures):
+            future.result()
+
+    return total

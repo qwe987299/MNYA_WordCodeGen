@@ -17,7 +17,7 @@ import time
 
 # 匯入 batch_tools 各模組
 from batch_tools.image_tools import add_watermark, merge_images, split_and_merge_image, center_process_images, compress_images_by_cjpeg
-from batch_tools.video_tools import add_video_watermark, video_repeat_fade, video_crop, video_add_bgm
+from batch_tools.video_tools import add_video_watermark, video_repeat_fade, video_crop, video_add_bgm, capture_video_subtitles_screenshots
 from batch_tools.audio_tools import merge_audio
 from batch_tools.gpx_tools import convert_gpx_files
 from batch_tools.subtitle_tools import sub2txt
@@ -34,6 +34,7 @@ from windows.gpx_slope_window import open_gpx_slope_window
 from windows.video_bgm_window import open_video_bgm_window
 from windows.youtube_thumbnail_window import open_youtube_thumbnail_window
 from windows.pdf_decrypt_window import open_pdf_decrypt_window
+from windows.video_subtitle_screenshot_window import open_video_subtitle_screenshot_window
 
 # 測試指令：python MNYA_WordCodeGen.py
 # 打包指令：pyinstaller --onefile --icon=icon.ico --noconsole MNYA_WordCodeGen.py
@@ -42,7 +43,7 @@ from windows.pdf_decrypt_window import open_pdf_decrypt_window
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.8.1"  # 版本
+VERSION = "V1.8.2"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱
@@ -112,6 +113,7 @@ class App(tk.Frame):
         self.video_bgm_win = None
         self.yt_thumbnail_win = None
         self.pdf_decrypt_win = None
+        self.video_sub_screenshot_win = None
 
         # 儲存複製按鈕的還原任務 ID
         self._copied_btn_after_id = None
@@ -287,6 +289,12 @@ class App(tk.Frame):
     def save_pdf_decrypt_config(self, config_dict):
         self._save_sub_config("pdf_decrypt", config_dict)
 
+    def load_video_sub_screenshot_config(self):
+        return self._load_sub_config("video_sub_screenshot")
+
+    def save_video_sub_screenshot_config(self, config_dict):
+        self._save_sub_config("video_sub_screenshot", config_dict)
+
     def center_child_window(self, child_win, width, height):
         # 取得主視窗座標與大小
         self.master.update_idletasks()
@@ -391,6 +399,15 @@ class App(tk.Frame):
             self.load_pdf_decrypt_config,
             self.save_pdf_decrypt_config,
             decrypt_pdf_func=decrypt_pdf_files
+        )
+
+    def open_video_subtitle_screenshot_window(self):
+        self._open_sub_window(
+            'video_sub_screenshot_win',
+            open_video_subtitle_screenshot_window,
+            self.load_video_sub_screenshot_config,
+            self.save_video_sub_screenshot_config,
+            video_sub_screenshot_func=capture_video_subtitles_screenshots
         )
 
     ###############
@@ -728,7 +745,9 @@ class App(tk.Frame):
                     ("✂️ 影片裁切工具", self.open_video_crop_window,
                      "裁切影片至指定寬高，音軌將直接複製\n(支援常見影片格式)"),
                     ("🎵 影片背景音樂", self.open_video_bgm_window,
-                     "為影片加入背景音樂，支援多個音樂檔合併、\n自動剪裁、以及片頭片尾淡入淡出效果\n(支援格式：.mp4)")
+                     "為影片加入背景音樂，支援多個音樂檔合併、\n自動剪裁、以及片頭片尾淡入淡出效果\n(支援格式：.mp4)"),
+                    ("📸 影片依字幕截圖", self.open_video_subtitle_screenshot_window,
+                     "依照字幕開始時間自動截圖影片畫面為 JPG 圖片，\n支援時間軸偏移 (ms) 微調\n(支援格式：常見影片格式與 .srt 等字幕)")
                 ]
             },
             {
