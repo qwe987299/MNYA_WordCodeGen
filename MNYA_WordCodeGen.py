@@ -43,7 +43,7 @@ from windows.video_subtitle_screenshot_window import open_video_subtitle_screens
 WINDOW_WIDTH = 435  # 寬度
 WINDOW_HEIGHT = 495  # 高度
 APP_NAME = "萌芽系列網站圖文原始碼生成器"  # 應用名稱
-VERSION = "V1.8.2"  # 版本
+VERSION = "V1.8.3"  # 版本
 BUILD_DIR = "build"  # 輸出目錄
 
 # 配置檔案名稱

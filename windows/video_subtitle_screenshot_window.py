@@ -215,8 +215,15 @@ def open_video_subtitle_screenshot_window(app, parent, config, save_config_func,
 
         def work():
             try:
-                def progress(curr, tot):
-                    subwin.after(0, lambda: label_status.config(text=f"截圖進度：{curr} / {tot}"))
+                def progress(curr, tot, time_ms=None):
+                    if time_ms is not None:
+                        sec_val, ms_part = divmod(int(time_ms), 1000)
+                        m_val, s_val = divmod(sec_val, 60)
+                        h_val, m_val = divmod(m_val, 60)
+                        t_str = f"{h_val:02d}:{m_val:02d}:{s_val:02d}.{ms_part:03d}"
+                        subwin.after(0, lambda: label_status.config(text=f"截圖進度：{curr} / {tot} ({t_str})"))
+                    else:
+                        subwin.after(0, lambda: label_status.config(text=f"截圖進度：{curr} / {tot}"))
 
                 count = video_sub_screenshot_func(
                     video_fp, sub_fp, offset_ms, output_dir, progress_callback=progress

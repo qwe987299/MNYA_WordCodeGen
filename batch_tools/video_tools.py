@@ -275,11 +275,13 @@ def extract_subtitles_start_times(file_path):
         h = int(match.group(1)) if match.group(1) else 0
         m = int(match.group(2))
         s = int(match.group(3))
-        ms = int(match.group(4).ljust(3, '0')[:3])
+        # 注意：SRT/VTT 毫秒欄位若少於 3 位數 (如 84 或 63)，為軟體整數格式化時省略前導零 (084 -> 84)
+        # 故直接 int(match.group(4)) 取得真實毫秒，絕不可補後綴零 (補零會將 84ms 誤判為 840ms，導致晚了整整 756ms)
+        ms = int(match.group(4))
         times.append((h * 3600 + m * 60 + s) * 1000 + ms)
 
     if not times:
-        # 2. ASS / SSA 格式
+        # 2. ASS / SSA 格式 (格式固定為兩位數百分秒，如 24.84 代表 840ms)
         pattern_ass = re.compile(
             r'Dialogue:\s*[^,]*,\s*(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})'
         )
@@ -287,18 +289,12 @@ def extract_subtitles_start_times(file_path):
             h = int(match.group(1)) if match.group(1) else 0
             m = int(match.group(2))
             s = int(match.group(3))
-            ms = int(match.group(4).ljust(3, '0')[:3])
+            ms_str = match.group(4)
+            ms = int(ms_str.ljust(3, '0')[:3])
             times.append((h * 3600 + m * 60 + s) * 1000 + ms)
 
-    # 去除重複時間點並排序
-    seen = set()
-    unique_times = []
-    for t in times:
-        if t not in seen:
-            seen.add(t)
-            unique_times.append(t)
-    unique_times.sort()
-    return unique_times
+    # 保持字幕檔原始順序與 1-to-1 對應，避免去重後造成截圖編號與字幕序號錯位
+    return times
 
 
 def capture_video_subtitles_screenshots(video_path, subtitle_path, offset_ms, output_dir, progress_callback=None):
@@ -317,23 +313,42 @@ def capture_video_subtitles_screenshots(video_path, subtitle_path, offset_ms, ou
         target_sec = target_ms / 1000.0
         out_filename = f"{video_name}_{idx:0{pad}d}.jpg"
         out_filepath = os.path.join(output_dir, out_filename)
-        tasks.append((idx, target_sec, out_filepath))
+        tasks.append((idx, target_sec, target_ms, out_filepath))
 
     completed_count = 0
     lock = threading.Lock()
 
     def process_one(task_info):
         nonlocal completed_count
-        idx, target_sec, out_filepath = task_info
-        ffmpeg_cmd = [
-            'ffmpeg',
-            '-ss', f"{target_sec:.3f}",
-            '-i', video_path,
-            '-frames:v', '1',
-            '-q:v', '2',
-            '-y',
-            out_filepath
-        ]
+        idx, target_sec, target_ms, out_filepath = task_info
+        
+        # 採用 FFmpeg 官方標準 Combination Seeking：
+        # 在 -i 之前用 -ss 快速跳至目標前 3 秒，搭配 -copyts 保留原始時間戳，
+        # 在 -i 之後指定精確目標時間 -ss {target_sec}，由解碼器精確定位到毫秒等級影格！
+        if target_sec > 3.0:
+            pre_seek = target_sec - 3.0
+            ffmpeg_cmd = [
+                'ffmpeg',
+                '-ss', f"{pre_seek:.3f}",
+                '-copyts',
+                '-i', video_path,
+                '-ss', f"{target_sec:.3f}",
+                '-frames:v', '1',
+                '-q:v', '2',
+                '-y',
+                out_filepath
+            ]
+        else:
+            ffmpeg_cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-ss', f"{target_sec:.3f}",
+                '-frames:v', '1',
+                '-q:v', '2',
+                '-y',
+                out_filepath
+            ]
+
         result = subprocess.run(
             ffmpeg_cmd,
             capture_output=True,
@@ -347,7 +362,7 @@ def capture_video_subtitles_screenshots(video_path, subtitle_path, offset_ms, ou
         with lock:
             completed_count += 1
             if progress_callback:
-                progress_callback(completed_count, total)
+                progress_callback(completed_count, total, target_ms)
 
     max_workers = min(4, os.cpu_count() or 2)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
